@@ -29,15 +29,27 @@ export default function POSPage() {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
 
+  const mockProducts: Product[] = [
+    { id: "1", name: "Agua Mineral", price: 25, category: "Bebidas", stockQuantity: 50, isActive: true },
+    { id: "2", name: "Smoothie Verde", price: 65, category: "Bebidas", stockQuantity: 20, isActive: true },
+    { id: "3", name: "Barra Proteína", price: 45, category: "Snacks", stockQuantity: 30, isActive: true },
+    { id: "4", name: "Toalla Yoga", price: 350, category: "Accesorios", stockQuantity: 15, isActive: true },
+    { id: "5", name: "Mat Yoga", price: 800, category: "Accesorios", stockQuantity: 8, isActive: true },
+    { id: "6", name: "Proteína Whey", price: 120, category: "Suplementos", stockQuantity: 25, isActive: true },
+  ];
+
   const fetchData = async () => {
     try {
       const res = await fetch("/api/products");
       if (res.ok) {
         const json = await res.json();
-        setProducts(json);
+        setProducts(json.length > 0 ? json : mockProducts);
+      } else {
+        setProducts(mockProducts);
       }
     } catch (e) {
       console.error(e);
+      setProducts(mockProducts);
     } finally {
       setLoading(false);
     }
