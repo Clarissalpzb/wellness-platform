@@ -33,13 +33,13 @@ const ownerNav = [
   {
     label: "Administrar",
     items: [
-      { name: "Clases", href: "/admin/clases", icon: Calendar },
-      { name: "Paquetes", href: "/admin/paquetes", icon: Package },
-      { name: "Equipo", href: "/admin/equipo", icon: UserCog },
-      { name: "Espacios", href: "/admin/espacios", icon: Building2 },
-      { name: "Usuarios", href: "/admin/usuarios", icon: Users },
-      { name: "CRM", href: "/admin/crm", icon: Megaphone },
-      { name: "Punto de Venta", href: "/admin/pos", icon: ShoppingBag },
+      { name: "Clases", href: "/clases", icon: Calendar },
+      { name: "Paquetes", href: "/paquetes", icon: Package },
+      { name: "Equipo", href: "/equipo", icon: UserCog },
+      { name: "Espacios", href: "/espacios", icon: Building2 },
+      { name: "Usuarios", href: "/usuarios", icon: Users },
+      { name: "CRM", href: "/crm", icon: Megaphone },
+      { name: "Punto de Venta", href: "/pos", icon: ShoppingBag },
     ],
   },
 ];
@@ -91,7 +91,7 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-neutral-800">
         <Link
-          href="/admin/settings"
+          href="/settings"
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-text hover:bg-white/5 hover:text-white transition-colors"
         >
           <Settings className="h-4 w-4" />

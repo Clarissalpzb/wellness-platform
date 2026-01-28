@@ -10,7 +10,7 @@ const mobileNavItems = [
   { name: "Clases", href: "/app/reservar", icon: Calendar },
   { name: "Métricas", href: "/dashboard/operaciones", icon: BarChart3 },
   { name: "Perfil", href: "/app/perfil", icon: User },
-  { name: "Más", href: "/admin/clases", icon: Menu },
+  { name: "Más", href: "/clases", icon: Menu },
 ];
 
 export function MobileNav() {

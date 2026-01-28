@@ -69,7 +69,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const isLoggedIn = !!auth?.user;
       const isProtected =
         nextUrl.pathname.startsWith("/dashboard") ||
-        nextUrl.pathname.startsWith("/admin") ||
+        nextUrl.pathname.startsWith("/clases") ||
+        nextUrl.pathname.startsWith("/paquetes") ||
+        nextUrl.pathname.startsWith("/equipo") ||
+        nextUrl.pathname.startsWith("/espacios") ||
+        nextUrl.pathname.startsWith("/usuarios") ||
+        nextUrl.pathname.startsWith("/crm") ||
+        nextUrl.pathname.startsWith("/pos") ||
         nextUrl.pathname.startsWith("/coach") ||
         nextUrl.pathname.startsWith("/app");
 
