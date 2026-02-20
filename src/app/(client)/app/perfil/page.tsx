@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback, FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,49 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Camera, Package, Calendar, Save } from "lucide-react";
+import { Camera, Package, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
-const healthFlags = [
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+interface HealthFlag {
+  id: string;
+  label: string;
+  active: boolean;
+}
+
+interface ProfileData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  avatarUrl: string;
+  initials: string;
+  healthFlags: HealthFlag[];
+  package: {
+    name: string;
+    expiresAt: string;
+    classesUsed: number | string;
+    classesTotal: number | string;
+    daysRemaining: number;
+  };
+  stats: {
+    classesThisMonth: number;
+    currentStreak: number;
+    favoriteClass: string;
+    memberSince: string;
+  };
+  notifications: {
+    email: boolean;
+    push: boolean;
+    whatsapp: boolean;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Default / mock data
+// ---------------------------------------------------------------------------
+const defaultHealthFlags: HealthFlag[] = [
   { id: "pregnancy", label: "Embarazo", active: false },
   { id: "back_injury", label: "Lesión de espalda", active: true },
   { id: "knee_injury", label: "Lesión de rodilla", active: false },
@@ -20,14 +60,141 @@ const healthFlags = [
   { id: "asthma", label: "Asma", active: false },
 ];
 
-export default function PerfilPage() {
-  const [flags, setFlags] = useState(healthFlags);
+const defaultProfile: ProfileData = {
+  firstName: "Clarissa",
+  lastName: "López",
+  email: "clarissa@email.com",
+  phone: "+52 55 1234 5678",
+  avatarUrl: "",
+  initials: "CL",
+  healthFlags: defaultHealthFlags,
+  package: {
+    name: "Membresía Mensual",
+    expiresAt: "15 Feb 2026",
+    classesUsed: 12,
+    classesTotal: "Ilimitadas",
+    daysRemaining: 18,
+  },
+  stats: {
+    classesThisMonth: 12,
+    currentStreak: 5,
+    favoriteClass: "Yoga Flow",
+    memberSince: "Oct 2025",
+  },
+  notifications: {
+    email: true,
+    push: true,
+    whatsapp: false,
+  },
+};
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+export default function PerfilPage() {
+  const [profile, setProfile] = useState<ProfileData>(defaultProfile);
+  const [flags, setFlags] = useState<HealthFlag[]>(defaultHealthFlags);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "success" | "error">("idle");
+  const [saveMessage, setSaveMessage] = useState("");
+
+  // Form fields
+  const [firstName, setFirstName] = useState(defaultProfile.firstName);
+  const [lastName, setLastName] = useState(defaultProfile.lastName);
+  const [email, setEmail] = useState(defaultProfile.email);
+  const [phone, setPhone] = useState(defaultProfile.phone);
+  const [notifications, setNotifications] = useState(defaultProfile.notifications);
+
+  // ---- Fetch profile on mount ----
+  const fetchProfile = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/profile");
+      if (!res.ok) throw new Error("API error");
+      const data = await res.json();
+
+      const merged: ProfileData = {
+        firstName: data.firstName ?? data.first_name ?? defaultProfile.firstName,
+        lastName: data.lastName ?? data.last_name ?? defaultProfile.lastName,
+        email: data.email ?? defaultProfile.email,
+        phone: data.phone ?? defaultProfile.phone,
+        avatarUrl: data.avatarUrl ?? data.avatar_url ?? defaultProfile.avatarUrl,
+        initials: data.initials ?? `${(data.firstName ?? data.first_name ?? "C")[0]}${(data.lastName ?? data.last_name ?? "L")[0]}`,
+        healthFlags: Array.isArray(data.healthFlags) ? data.healthFlags : defaultProfile.healthFlags,
+        package: data.package ?? defaultProfile.package,
+        stats: data.stats ?? defaultProfile.stats,
+        notifications: data.notifications ?? defaultProfile.notifications,
+      };
+
+      setProfile(merged);
+      setFirstName(merged.firstName);
+      setLastName(merged.lastName);
+      setEmail(merged.email);
+      setPhone(merged.phone);
+      setFlags(merged.healthFlags);
+      setNotifications(merged.notifications);
+    } catch {
+      // Keep defaults – already set in initial state
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  // ---- Toggle health flag ----
   const toggleFlag = (id: string) => {
     setFlags((prev) =>
       prev.map((f) => (f.id === id ? { ...f, active: !f.active } : f))
     );
   };
+
+  // ---- Save profile ----
+  const handleSave = async (e: FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setSaveStatus("idle");
+    setSaveMessage("");
+    try {
+      const res = await fetch("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          phone,
+          healthFlags: flags,
+          notifications,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Error al guardar" }));
+        throw new Error(err.error || "Error al guardar");
+      }
+      setSaveStatus("success");
+      setSaveMessage("Cambios guardados exitosamente.");
+    } catch (e: unknown) {
+      setSaveStatus("error");
+      setSaveMessage(e instanceof Error ? e.message : "Error al guardar. Intenta de nuevo.");
+    } finally {
+      setSaving(false);
+      // Clear success message after a few seconds
+      setTimeout(() => setSaveStatus("idle"), 4000);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="h-6 w-6 animate-spin text-primary-500" />
+        <span className="ml-2 text-sm text-neutral-500">Cargando perfil...</span>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -46,8 +213,8 @@ export default function PerfilPage() {
             <CardContent>
               <div className="flex items-center gap-4 mb-6">
                 <Avatar className="h-20 w-20">
-                  <AvatarImage src="" />
-                  <AvatarFallback className="text-xl">CL</AvatarFallback>
+                  <AvatarImage src={profile.avatarUrl} />
+                  <AvatarFallback className="text-xl">{profile.initials}</AvatarFallback>
                 </Avatar>
                 <Button variant="outline" size="sm">
                   <Camera className="h-4 w-4 mr-2" />
@@ -55,27 +222,64 @@ export default function PerfilPage() {
                 </Button>
               </div>
 
-              <form className="space-y-4">
+              <form className="space-y-4" onSubmit={handleSave}>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">Nombre</Label>
-                    <Input id="firstName" defaultValue="Clarissa" />
+                    <Input
+                      id="firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="lastName">Apellido</Label>
-                    <Input id="lastName" defaultValue="López" />
+                    <Input
+                      id="lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                    />
                   </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" defaultValue="clarissa@email.com" />
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="phone">Teléfono</Label>
-                  <Input id="phone" type="tel" defaultValue="+52 55 1234 5678" />
+                  <Input
+                    id="phone"
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
                 </div>
-                <Button>
-                  <Save className="h-4 w-4 mr-2" />
+
+                {/* Save feedback */}
+                {saveStatus === "success" && (
+                  <div className="flex items-center gap-2 bg-green-50 text-green-800 text-sm p-3 rounded-lg">
+                    <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                    <span>{saveMessage}</span>
+                  </div>
+                )}
+                {saveStatus === "error" && (
+                  <div className="flex items-center gap-2 bg-red-50 text-red-800 text-sm p-3 rounded-lg">
+                    <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                    <span>{saveMessage}</span>
+                  </div>
+                )}
+
+                <Button type="submit" disabled={saving}>
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4 mr-2" />
+                  )}
                   Guardar Cambios
                 </Button>
               </form>
@@ -118,18 +322,18 @@ export default function PerfilPage() {
                   <Package className="h-5 w-5" />
                 </div>
                 <div>
-                  <p className="font-medium">Membresía Mensual</p>
-                  <p className="text-xs text-neutral-500">Vence: 15 Feb 2026</p>
+                  <p className="font-medium">{profile.package.name}</p>
+                  <p className="text-xs text-neutral-500">Vence: {profile.package.expiresAt}</p>
                 </div>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Clases usadas</span>
-                  <span className="font-medium">12 de Ilimitadas</span>
+                  <span className="font-medium">{profile.package.classesUsed} de {profile.package.classesTotal}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Días restantes</span>
-                  <span className="font-medium">18 días</span>
+                  <span className="font-medium">{profile.package.daysRemaining} días</span>
                 </div>
               </div>
               <Separator className="my-4" />
@@ -145,19 +349,19 @@ export default function PerfilPage() {
               <div className="space-y-3 text-sm">
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Clases este mes</span>
-                  <span className="font-bold text-lg">12</span>
+                  <span className="font-bold text-lg">{profile.stats.classesThisMonth}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Racha actual</span>
-                  <span className="font-bold text-lg">5 días</span>
+                  <span className="font-bold text-lg">{profile.stats.currentStreak} días</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Clase favorita</span>
-                  <Badge variant="success">Yoga Flow</Badge>
+                  <Badge variant="success">{profile.stats.favoriteClass}</Badge>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-neutral-500">Miembro desde</span>
-                  <span className="font-medium">Oct 2025</span>
+                  <span className="font-medium">{profile.stats.memberSince}</span>
                 </div>
               </div>
             </CardContent>
@@ -171,15 +375,33 @@ export default function PerfilPage() {
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label htmlFor="notif-email" className="text-sm cursor-pointer">Email</Label>
-                  <Switch id="notif-email" defaultChecked />
+                  <Switch
+                    id="notif-email"
+                    checked={notifications.email}
+                    onCheckedChange={(checked) =>
+                      setNotifications((prev) => ({ ...prev, email: checked }))
+                    }
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="notif-push" className="text-sm cursor-pointer">Push</Label>
-                  <Switch id="notif-push" defaultChecked />
+                  <Switch
+                    id="notif-push"
+                    checked={notifications.push}
+                    onCheckedChange={(checked) =>
+                      setNotifications((prev) => ({ ...prev, push: checked }))
+                    }
+                  />
                 </div>
                 <div className="flex items-center justify-between">
                   <Label htmlFor="notif-whatsapp" className="text-sm cursor-pointer">WhatsApp</Label>
-                  <Switch id="notif-whatsapp" />
+                  <Switch
+                    id="notif-whatsapp"
+                    checked={notifications.whatsapp}
+                    onCheckedChange={(checked) =>
+                      setNotifications((prev) => ({ ...prev, whatsapp: checked }))
+                    }
+                  />
                 </div>
               </div>
             </CardContent>
