@@ -10,6 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Camera, Package, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import Link from "next/link";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -337,7 +338,9 @@ export default function PerfilPage() {
                 </div>
               </div>
               <Separator className="my-4" />
-              <Button variant="outline" className="w-full">Renovar Paquete</Button>
+              <Link href="/app/paquetes">
+                <Button variant="outline" className="w-full">Renovar Paquete</Button>
+              </Link>
             </CardContent>
           </Card>
 
