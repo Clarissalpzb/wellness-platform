@@ -55,14 +55,6 @@ function getActivePackageName(user: any): string | null {
   return null;
 }
 
-const mockUsers = [
-  { id: "1", firstName: "Sofía", lastName: "Hernández", email: "sofia@email.com", phone: "+52 55 1111 2222", avatar: null, isActive: true, userPackages: [{ package: { name: "Membresía Mensual" }, status: "ACTIVE" }], _count: { bookings: 24 } },
-  { id: "2", firstName: "Diego", lastName: "Torres", email: "diego@email.com", phone: "+52 55 3333 4444", avatar: null, isActive: true, userPackages: [{ package: { name: "Paquete 10" }, status: "ACTIVE" }], _count: { bookings: 8 } },
-  { id: "3", firstName: "Valentina", lastName: "Ruiz", email: "vale@email.com", phone: "+52 55 5555 6666", avatar: null, isActive: true, userPackages: [], _count: { bookings: 15 } },
-  { id: "4", firstName: "Mateo", lastName: "Flores", email: "mateo@email.com", phone: "+52 55 7777 8888", avatar: null, isActive: true, userPackages: [{ package: { name: "Membresía Trimestral" }, status: "ACTIVE" }], _count: { bookings: 42 } },
-  { id: "5", firstName: "Isabella", lastName: "Morales", email: "isa@email.com", phone: "+52 55 9999 0000", avatar: null, isActive: false, userPackages: [], _count: { bookings: 3 } },
-];
-
 export default function UsuariosPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -73,13 +65,13 @@ export default function UsuariosPage() {
       const res = await fetch("/api/users");
       if (res.ok) {
         const json = await res.json();
-        setUsers(json.length > 0 ? json : mockUsers);
+        setUsers(json);
       } else {
-        setUsers(mockUsers);
+        setUsers([]);
       }
     } catch (e) {
       console.error(e);
-      setUsers(mockUsers);
+      setUsers([]);
     } finally {
       setLoading(false);
     }

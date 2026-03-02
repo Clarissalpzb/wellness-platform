@@ -22,26 +22,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-const mockLocations = [
-  {
-    id: "1", name: "Sucursal Polanco", address: "Av. Presidente Masaryk 123, Polanco, CDMX",
-    phone: "+52 55 1234 5678", isActive: true,
-    spaces: [
-      { id: "1a", name: "Sala Principal", capacity: 25, amenities: [] },
-      { id: "1b", name: "Sala Yoga", capacity: 15, amenities: [] },
-      { id: "1c", name: "Terraza", capacity: 10, amenities: [] },
-    ],
-  },
-  {
-    id: "2", name: "Sucursal Condesa", address: "Calle Tamaulipas 45, Condesa, CDMX",
-    phone: "+52 55 8765 4321", isActive: true,
-    spaces: [
-      { id: "2a", name: "Sala Única", capacity: 20, amenities: [] },
-      { id: "2b", name: "Sala Meditación", capacity: 12, amenities: [] },
-    ],
-  },
-];
-
 export default function EspaciosPage() {
   const [locations, setLocations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,13 +35,13 @@ export default function EspaciosPage() {
       const res = await fetch("/api/locations");
       if (res.ok) {
         const json = await res.json();
-        setLocations(json.length > 0 ? json : mockLocations);
+        setLocations(json);
       } else {
-        setLocations(mockLocations);
+        setLocations([]);
       }
     } catch (e) {
       console.error(e);
-      setLocations(mockLocations);
+      setLocations([]);
     } finally {
       setLoading(false);
     }

@@ -35,26 +35,18 @@ export default function ClasesPage() {
   const [formCategory, setFormCategory] = useState("");
   const [formLevel, setFormLevel] = useState("");
 
-  const mockClasses = [
-    { id: "1", name: "Yoga Flow", category: "Yoga", duration: 60, maxCapacity: 20, level: "Todos", color: "#22c55e", schedules: [{}, {}, {}, {}, {}], isActive: true, description: "Clase de yoga para todos los niveles", waitlistMax: 5 },
-    { id: "2", name: "HIIT Cardio", category: "Cardio", duration: 45, maxCapacity: 15, level: "Intermedio", color: "#3b82f6", schedules: [{}, {}, {}], isActive: true, description: "Entrenamiento de alta intensidad", waitlistMax: 3 },
-    { id: "3", name: "Pilates Mat", category: "Pilates", duration: 50, maxCapacity: 12, level: "Principiante", color: "#f59e0b", schedules: [{}, {}, {}, {}], isActive: true, description: "Pilates en colchoneta", waitlistMax: 5 },
-    { id: "4", name: "Meditación", category: "Mindfulness", duration: 30, maxCapacity: 25, level: "Todos", color: "#8b5cf6", schedules: [{}, {}], isActive: true, description: "Sesión guiada de meditación", waitlistMax: 10 },
-    { id: "5", name: "CrossFit", category: "Fuerza", duration: 60, maxCapacity: 10, level: "Avanzado", color: "#f43f5e", schedules: [{}, {}, {}, {}, {}, {}], isActive: false, description: "Entrenamiento funcional de alta intensidad", waitlistMax: 3 },
-  ];
-
   const fetchData = async () => {
     try {
       const res = await fetch("/api/classes");
       if (res.ok) {
         const json = await res.json();
-        setClasses(json.length > 0 ? json : mockClasses);
+        setClasses(json);
       } else {
-        setClasses(mockClasses);
+        setClasses([]);
       }
     } catch (e) {
       console.error(e);
-      setClasses(mockClasses);
+      setClasses([]);
     } finally {
       setLoading(false);
     }

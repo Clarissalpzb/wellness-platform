@@ -49,13 +49,6 @@ const statusVariant: Record<string, "secondary" | "info" | "warning" | "success"
   FAILED: "destructive",
 };
 
-const mockCampaigns = [
-  { id: "1", name: "Bienvenida Enero", channel: "EMAIL", status: "SENT", sentAt: "2026-01-15", analytics: { sent: 150, opened: 95, clicked: 42 } },
-  { id: "2", name: "Promo Febrero", channel: "EMAIL", status: "DRAFT", sentAt: null, analytics: { sent: 0, opened: 0, clicked: 0 } },
-  { id: "3", name: "Recordatorio Paquete", channel: "WHATSAPP", status: "SENT", sentAt: "2026-01-20", analytics: { sent: 45, opened: 38, clicked: 20 } },
-  { id: "4", name: "Clase Nueva", channel: "EMAIL", status: "SCHEDULED", sentAt: null, analytics: { sent: 0, opened: 0, clicked: 0 } },
-];
-
 export default function CRMPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -69,13 +62,13 @@ export default function CRMPage() {
       const res = await fetch("/api/campaigns");
       if (res.ok) {
         const json = await res.json();
-        setCampaigns(json.length > 0 ? json : mockCampaigns);
+        setCampaigns(json);
       } else {
-        setCampaigns(mockCampaigns);
+        setCampaigns([]);
       }
     } catch (e) {
       console.error(e);
-      setCampaigns(mockCampaigns);
+      setCampaigns([]);
     } finally {
       setLoading(false);
     }

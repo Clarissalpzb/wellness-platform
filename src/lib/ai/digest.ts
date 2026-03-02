@@ -48,7 +48,7 @@ export async function generateDailyDigest(organizationId: string) {
 
   for (const owner of owners) {
     await resend.emails.send({
-      from: "Wellness Platform <insights@wellness.app>",
+      from: "Athletica <insights@athletica.app>",
       to: owner.email,
       subject: `[${org.name}] Resumen diario - ${topInsights.length} insights nuevos`,
       html: `

@@ -63,7 +63,7 @@ export default function RegisterPage() {
             <Label htmlFor="organizationName">Nombre del Centro</Label>
             <Input
               id="organizationName"
-              placeholder="Mi Centro Wellness"
+              placeholder="Mi Centro Athletica"
               {...register("organizationName")}
             />
             {errors.organizationName && (

@@ -45,14 +45,6 @@ const roleBadgeVariant: Record<string, "default" | "secondary" | "info" | "warni
   COACH: "secondary",
 };
 
-const mockStaff = [
-  { id: "1", firstName: "Ana", lastName: "Martínez", email: "ana@wellness.com", role: "ADMIN", avatar: null, isActive: true, phone: "+52 55 1234 5678" },
-  { id: "2", firstName: "Carlos", lastName: "López", email: "carlos@wellness.com", role: "COACH", avatar: null, isActive: true, phone: "+52 55 2345 6789" },
-  { id: "3", firstName: "María", lastName: "García", email: "maria@wellness.com", role: "COACH", avatar: null, isActive: true, phone: "+52 55 3456 7890" },
-  { id: "4", firstName: "Pedro", lastName: "Sánchez", email: "pedro@wellness.com", role: "FRONT_DESK", avatar: null, isActive: true, phone: "+52 55 4567 8901" },
-  { id: "5", firstName: "Laura", lastName: "Rodríguez", email: "laura@wellness.com", role: "COACH", avatar: null, isActive: false, phone: "+52 55 5678 9012" },
-];
-
 export default function EquipoPage() {
   const [staff, setStaff] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,13 +60,13 @@ export default function EquipoPage() {
       const res = await fetch("/api/staff");
       if (res.ok) {
         const json = await res.json();
-        setStaff(json.length > 0 ? json : mockStaff);
+        setStaff(json);
       } else {
-        setStaff(mockStaff);
+        setStaff([]);
       }
     } catch (e) {
       console.error(e);
-      setStaff(mockStaff);
+      setStaff([]);
     } finally {
       setLoading(false);
     }

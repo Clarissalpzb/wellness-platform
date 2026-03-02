@@ -14,9 +14,9 @@ export function LandingHeader() {
         <div className="flex items-center justify-between h-16">
           <Link href="/" className="flex items-center gap-2">
             <div className="h-8 w-8 rounded-lg bg-primary-500 flex items-center justify-center">
-              <span className="text-white font-bold text-sm">W</span>
+              <span className="text-white font-bold text-sm">A</span>
             </div>
-            <span className="font-semibold text-lg text-neutral-900">Wellness</span>
+            <span className="font-semibold text-lg text-neutral-900">Athletica</span>
           </Link>
 
           <nav className="hidden md:flex items-center gap-8">

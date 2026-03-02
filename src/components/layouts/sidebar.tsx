@@ -51,9 +51,9 @@ export function Sidebar() {
     <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-sidebar-bg text-sidebar-text border-r border-neutral-800">
       <div className="flex items-center gap-2 px-6 py-5 border-b border-neutral-800">
         <div className="h-8 w-8 rounded-lg bg-primary-500 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">W</span>
+          <span className="text-white font-bold text-sm">A</span>
         </div>
-        <span className="text-white font-semibold text-lg">Wellness</span>
+        <span className="text-white font-semibold text-lg">Athletica</span>
       </div>
 
       <ScrollArea className="flex-1 py-4">

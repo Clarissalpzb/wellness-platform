@@ -8,7 +8,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Wellness Platform - Gestión Inteligente para Centros de Bienestar",
+  title: "Athletica - Gestión Inteligente para Centros de Bienestar",
   description:
     "Plataforma todo-en-uno con IA para gestionar tu centro de bienestar: clases, clientes, pagos, marketing y más.",
 };

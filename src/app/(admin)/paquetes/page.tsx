@@ -40,26 +40,18 @@ export default function PaquetesPage() {
   // Form state for select (not captured by FormData)
   const [formType, setFormType] = useState("");
 
-  const mockPackages = [
-    { id: "1", name: "Pase Individual", type: "DROP_IN", price: 250, currency: "MXN", classLimit: 1, validityDays: 1, isActive: true, _count: { userPackages: 45 } },
-    { id: "2", name: "Paquete 10 Clases", type: "CLASS_PACK", price: 2000, currency: "MXN", classLimit: 10, validityDays: 30, isActive: true, _count: { userPackages: 120 } },
-    { id: "3", name: "Paquete 20 Clases", type: "CLASS_PACK", price: 3500, currency: "MXN", classLimit: 20, validityDays: 45, isActive: true, _count: { userPackages: 80 } },
-    { id: "4", name: "Membresía Mensual", type: "UNLIMITED", price: 1500, currency: "MXN", classLimit: null, validityDays: 30, isActive: true, _count: { userPackages: 200 } },
-    { id: "5", name: "Membresía Trimestral", type: "MEMBERSHIP", price: 3800, currency: "MXN", classLimit: null, validityDays: 90, isActive: true, _count: { userPackages: 55 } },
-  ];
-
   const fetchData = async () => {
     try {
       const res = await fetch("/api/packages");
       if (res.ok) {
         const json = await res.json();
-        setPackages(json.length > 0 ? json : mockPackages);
+        setPackages(json);
       } else {
-        setPackages(mockPackages);
+        setPackages([]);
       }
     } catch (e) {
       console.error(e);
-      setPackages(mockPackages);
+      setPackages([]);
     } finally {
       setLoading(false);
     }

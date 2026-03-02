@@ -9,9 +9,9 @@ export default function AuthLayout({
         <div className="flex justify-center mb-8">
           <div className="flex items-center gap-2">
             <div className="h-10 w-10 rounded-lg bg-primary-500 flex items-center justify-center">
-              <span className="text-white font-bold text-lg">W</span>
+              <span className="text-white font-bold text-lg">A</span>
             </div>
-            <span className="font-semibold text-2xl text-neutral-900">Wellness</span>
+            <span className="font-semibold text-2xl text-neutral-900">Athletica</span>
           </div>
         </div>
         {children}

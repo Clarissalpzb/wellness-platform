@@ -8,9 +8,9 @@ export function LandingFooter() {
           <div className="col-span-2 md:col-span-1">
             <div className="flex items-center gap-2 mb-4">
               <div className="h-8 w-8 rounded-lg bg-primary-500 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">W</span>
+                <span className="text-white font-bold text-sm">A</span>
               </div>
-              <span className="text-white font-semibold text-lg">Wellness</span>
+              <span className="text-white font-semibold text-lg">Athletica</span>
             </div>
             <p className="text-sm">
               Plataforma inteligente para gestionar tu centro de bienestar.
@@ -45,7 +45,7 @@ export function LandingFooter() {
         </div>
 
         <div className="border-t border-neutral-800 mt-12 pt-8 text-sm text-center">
-          <p>&copy; {new Date().getFullYear()} Wellness Platform. Todos los derechos reservados.</p>
+          <p>&copy; {new Date().getFullYear()} Athletica. Todos los derechos reservados.</p>
         </div>
       </div>
     </footer>
