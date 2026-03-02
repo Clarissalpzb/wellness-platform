@@ -54,7 +54,7 @@ interface ProfileData {
 // ---------------------------------------------------------------------------
 const defaultHealthFlags: HealthFlag[] = [
   { id: "pregnancy", label: "Embarazo", active: false },
-  { id: "back_injury", label: "Lesión de espalda", active: true },
+  { id: "back_injury", label: "Lesión de espalda", active: false },
   { id: "knee_injury", label: "Lesión de rodilla", active: false },
   { id: "heart_condition", label: "Condición cardíaca", active: false },
   { id: "high_blood_pressure", label: "Presión alta", active: false },
@@ -62,25 +62,25 @@ const defaultHealthFlags: HealthFlag[] = [
 ];
 
 const defaultProfile: ProfileData = {
-  firstName: "Clarissa",
-  lastName: "López",
-  email: "clarissa@email.com",
-  phone: "+52 55 1234 5678",
+  firstName: "",
+  lastName: "",
+  email: "",
+  phone: "",
   avatarUrl: "",
-  initials: "CL",
+  initials: "",
   healthFlags: defaultHealthFlags,
   package: {
-    name: "Membresía Mensual",
-    expiresAt: "15 Feb 2026",
-    classesUsed: 12,
-    classesTotal: "Ilimitadas",
-    daysRemaining: 18,
+    name: "Sin paquete",
+    expiresAt: "-",
+    classesUsed: 0,
+    classesTotal: 0,
+    daysRemaining: 0,
   },
   stats: {
-    classesThisMonth: 12,
-    currentStreak: 5,
-    favoriteClass: "Yoga Flow",
-    memberSince: "Oct 2025",
+    classesThisMonth: 0,
+    currentStreak: 0,
+    favoriteClass: "-",
+    memberSince: "-",
   },
   notifications: {
     email: true,
@@ -121,7 +121,7 @@ export default function PerfilPage() {
         email: data.email ?? defaultProfile.email,
         phone: data.phone ?? defaultProfile.phone,
         avatarUrl: data.avatarUrl ?? data.avatar_url ?? defaultProfile.avatarUrl,
-        initials: data.initials ?? `${(data.firstName ?? data.first_name ?? "C")[0]}${(data.lastName ?? data.last_name ?? "L")[0]}`,
+        initials: data.initials ?? `${(data.firstName ?? data.first_name ?? "")[0] ?? ""}${(data.lastName ?? data.last_name ?? "")[0] ?? ""}`,
         healthFlags: Array.isArray(data.healthFlags) ? data.healthFlags : defaultProfile.healthFlags,
         package: data.package ?? defaultProfile.package,
         stats: data.stats ?? defaultProfile.stats,

@@ -108,54 +108,18 @@ const STUDIO_CANCELLATION: Record<string, { type: string; text: string }> = {
 const STUDIOS: StudioName[] = ["Reformee", "Raw Cycling", "Hotflow"];
 
 // ---------------------------------------------------------------------------
-// Mock packages
+// Packages (empty until fetched from API)
 // ---------------------------------------------------------------------------
 const PACKAGES: Record<StudioName, PackageItem[]> = {
-  Reformee: [
-    { id: "ref-1", name: "First Reform", price: 350, sessions: 1, validDays: 1, validClasses: ["Reformer Básico", "Reformer Intermedio"] },
-    { id: "ref-10", name: "Reform Pack 10", price: 3000, sessions: 10, validDays: 30, validClasses: ["Reformer Básico", "Reformer Intermedio", "Reformer Avanzado", "Fuerza Total"] },
-    { id: "ref-20", name: "Reform Pack 20", price: 5200, sessions: 20, validDays: 45, validClasses: ["Reformer Básico", "Reformer Intermedio", "Reformer Avanzado", "Fuerza Total"] },
-    { id: "ref-u", name: "Reformee Unlimited", price: 4500, sessions: "unlimited", validDays: 30, validClasses: ["Reformer Básico", "Reformer Intermedio", "Reformer Avanzado", "Fuerza Total", "Stretch & Restore"] },
-  ],
-  "Raw Cycling": [
-    { id: "raw-1", name: "First Ride", price: 250, sessions: 1, validDays: 1, validClasses: ["Ride Clásico", "Ride Beats"] },
-    { id: "raw-10", name: "Ride Pack 10", price: 2000, sessions: 10, validDays: 30, validClasses: ["Ride Clásico", "Ride Beats", "Ride Endurance"] },
-    { id: "raw-20", name: "Ride Pack 20", price: 3500, sessions: 20, validDays: 45, validClasses: ["Ride Clásico", "Ride Beats", "Ride Endurance", "Ride HIIT"] },
-    { id: "raw-u", name: "Raw Unlimited", price: 3200, sessions: "unlimited", validDays: 30, validClasses: ["Ride Clásico", "Ride Beats", "Ride Endurance", "Ride HIIT"] },
-  ],
-  Hotflow: [
-    { id: "hot-1", name: "Hello Hotties", price: 280, sessions: 1, validDays: 30, validClasses: ["Hot Yoga", "Vinyasa Flow"] },
-    { id: "hot-10", name: "Hot Pack 10", price: 2400, sessions: 10, validDays: 30, validClasses: ["Hot Yoga", "Vinyasa Flow", "Early Flow"] },
-    { id: "hot-20", name: "Hot Pack 20", price: 4200, sessions: 20, validDays: 45, validClasses: ["Hot Yoga", "Vinyasa Flow", "Early Flow", "Fuerza"] },
-    { id: "hot-u", name: "Hotflow Unlimited", price: 3800, sessions: "unlimited", validDays: 30, validClasses: ["Hot Yoga", "Vinyasa Flow", "Early Flow", "Fuerza", "Fuerza Total"] },
-  ],
+  Reformee: [],
+  "Raw Cycling": [],
+  Hotflow: [],
 };
 
 // ---------------------------------------------------------------------------
-// Mock schedule
+// Schedule (empty until fetched from API)
 // ---------------------------------------------------------------------------
-const mockSchedule: ScheduleItem[] = [
-  { id: "r1", time: "07:00", endTime: "07:50", name: "Reformer Basico", coach: "Mariana Vega", enrolled: 10, capacity: 12, color: "#a855f7", level: "Principiante", location: "Sala Reformer", category: "Reformer", studio: "Reformee" },
-  { id: "r2", time: "08:00", endTime: "08:50", name: "Reformer Flow", coach: "Mariana Vega", enrolled: 12, capacity: 12, color: "#a855f7", level: "Intermedio", location: "Sala Reformer", category: "Reformer", studio: "Reformee" },
-  { id: "r3", time: "09:00", endTime: "09:45", name: "Barre Sculpt", coach: "Daniela Rios", enrolled: 14, capacity: 18, color: "#c084fc", level: "Todos", location: "Sala Barre", category: "Barre", studio: "Reformee" },
-  { id: "r4", time: "10:00", endTime: "11:00", name: "Yoga Restore", coach: "Lucia Mendoza", enrolled: 8, capacity: 15, color: "#d8b4fe", level: "Todos", location: "Sala Yoga", category: "Yoga", studio: "Reformee" },
-  { id: "r5", time: "17:00", endTime: "17:50", name: "Reformer Advance", coach: "Mariana Vega", enrolled: 12, capacity: 12, color: "#a855f7", level: "Avanzado", location: "Sala Reformer", category: "Reformer", studio: "Reformee" },
-  { id: "r6", time: "18:00", endTime: "18:30", name: "Barre Express", coach: "Daniela Rios", enrolled: 16, capacity: 18, color: "#c084fc", level: "Intermedio", location: "Sala Barre", category: "Barre", studio: "Reformee" },
-  { id: "r7", time: "19:00", endTime: "20:00", name: "Vinyasa Yoga", coach: "Lucia Mendoza", enrolled: 10, capacity: 15, color: "#d8b4fe", level: "Intermedio", location: "Sala Yoga", category: "Yoga", studio: "Reformee" },
-  { id: "c1", time: "06:30", endTime: "07:15", name: "Ride & Rise", coach: "Carlos Herrera", enrolled: 28, capacity: 30, color: "#f59e0b", level: "Todos", location: "Sala Cycling", category: "Cycling", studio: "Raw Cycling" },
-  { id: "c2", time: "07:30", endTime: "08:15", name: "Power Ride", coach: "Carlos Herrera", enrolled: 30, capacity: 30, color: "#f59e0b", level: "Avanzado", location: "Sala Cycling", category: "Cycling", studio: "Raw Cycling" },
-  { id: "c3", time: "09:00", endTime: "09:45", name: "Beat Cycling", coach: "Andrea Solis", enrolled: 22, capacity: 30, color: "#fbbf24", level: "Intermedio", location: "Sala Cycling", category: "Cycling", studio: "Raw Cycling" },
-  { id: "c4", time: "12:00", endTime: "12:45", name: "Lunch Ride", coach: "Andrea Solis", enrolled: 18, capacity: 30, color: "#fbbf24", level: "Todos", location: "Sala Cycling", category: "Cycling", studio: "Raw Cycling" },
-  { id: "c5", time: "17:30", endTime: "18:15", name: "Ride & Rise", coach: "Carlos Herrera", enrolled: 30, capacity: 30, color: "#f59e0b", level: "Todos", location: "Sala Cycling", category: "Cycling", studio: "Raw Cycling" },
-  { id: "c6", time: "18:30", endTime: "19:15", name: "Power Ride", coach: "Andrea Solis", enrolled: 26, capacity: 30, color: "#f59e0b", level: "Avanzado", location: "Sala Cycling", category: "Cycling", studio: "Raw Cycling" },
-  { id: "c7", time: "19:30", endTime: "20:15", name: "Beat Cycling", coach: "Carlos Herrera", enrolled: 24, capacity: 30, color: "#fbbf24", level: "Intermedio", location: "Sala Cycling", category: "Cycling", studio: "Raw Cycling" },
-  { id: "h1", time: "07:00", endTime: "07:50", name: "Fuerza Total", coach: "Roberto Diaz", enrolled: 14, capacity: 16, color: "#ef4444", level: "Intermedio", location: "Sala Fuerza", category: "Fuerza", studio: "Hotflow" },
-  { id: "h2", time: "08:00", endTime: "08:45", name: "Upper Body", coach: "Fernanda Castro", enrolled: 16, capacity: 16, color: "#f87171", level: "Intermedio", location: "Sala Fuerza", category: "Fuerza", studio: "Hotflow" },
-  { id: "h3", time: "09:00", endTime: "09:50", name: "Lower Body Burn", coach: "Roberto Diaz", enrolled: 12, capacity: 16, color: "#ef4444", level: "Todos", location: "Sala Fuerza", category: "Fuerza", studio: "Hotflow" },
-  { id: "h4", time: "17:00", endTime: "17:50", name: "Core & Glutes", coach: "Fernanda Castro", enrolled: 15, capacity: 16, color: "#f87171", level: "Todos", location: "Sala Fuerza", category: "Fuerza", studio: "Hotflow" },
-  { id: "h5", time: "18:00", endTime: "18:50", name: "Full Body Power", coach: "Roberto Diaz", enrolled: 16, capacity: 16, color: "#ef4444", level: "Avanzado", location: "Sala Fuerza", category: "Fuerza", studio: "Hotflow" },
-  { id: "h6", time: "19:00", endTime: "19:50", name: "Fuerza Total", coach: "Fernanda Castro", enrolled: 13, capacity: 16, color: "#ef4444", level: "Intermedio", location: "Sala Fuerza", category: "Fuerza", studio: "Hotflow" },
-];
+const mockSchedule: ScheduleItem[] = [];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -254,7 +218,7 @@ export default function ReservarPage() {
 
   // ── Browse view state ──
   const [selectedDay, setSelectedDay] = useState(todayIndex >= 0 ? todayIndex : 0);
-  const [schedule, setSchedule] = useState<ScheduleItem[]>(mockSchedule);
+  const [schedule, setSchedule] = useState<ScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [studioFilter, setStudioFilter] = useState<StudioFilter>("all");
   const [search, setSearch] = useState("");
@@ -330,9 +294,9 @@ export default function ReservarPage() {
       const res = await fetch(`/api/schedule?date=${dateStr}`);
       if (!res.ok) throw new Error("API error");
       const data: ScheduleItem[] = await res.json();
-      setSchedule(data.length > 0 ? data : mockSchedule);
+      setSchedule(data);
     } catch {
-      setSchedule(mockSchedule);
+      setSchedule([]);
     } finally {
       setLoading(false);
     }

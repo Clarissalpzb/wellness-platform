@@ -30,27 +30,11 @@ interface ActivityItem {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data (fallback / default)
-// ---------------------------------------------------------------------------
-const mockFriends: Friend[] = [
-  { id: "1", name: "Ana Martínez", avatar: null, classesThisMonth: 15, streak: 8, favoriteClass: "HIIT" },
-  { id: "2", name: "Diego Torres", avatar: null, classesThisMonth: 10, streak: 3, favoriteClass: "Yoga" },
-  { id: "3", name: "Valentina Ruiz", avatar: null, classesThisMonth: 8, streak: 5, favoriteClass: "Pilates" },
-];
-
-const mockActivity: ActivityItem[] = [
-  { id: "1", user: "Ana Martínez", action: "completó", target: "HIIT Cardio", time: "Hace 2h" },
-  { id: "2", user: "Diego Torres", action: "reservó", target: "Yoga Flow", time: "Hace 3h" },
-  { id: "3", user: "Valentina Ruiz", action: "completó", target: "Pilates Mat", time: "Hace 5h" },
-  { id: "4", user: "Ana Martínez", action: "alcanzó racha de", target: "8 días", time: "Ayer" },
-];
-
-// ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 export default function AmigosPage() {
-  const [friends, setFriends] = useState<Friend[]>(mockFriends);
-  const [activity, setActivity] = useState<ActivityItem[]>(mockActivity);
+  const [friends, setFriends] = useState<Friend[]>([]);
+  const [activity, setActivity] = useState<ActivityItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -69,14 +53,14 @@ export default function AmigosPage() {
         if (!cancelled) {
           if (friendsRes && friendsRes.ok) {
             const data = await friendsRes.json();
-            if (Array.isArray(data) && data.length > 0) {
+            if (Array.isArray(data)) {
               setFriends(data);
             }
           }
 
           if (activityRes && activityRes.ok) {
             const data = await activityRes.json();
-            if (Array.isArray(data) && data.length > 0) {
+            if (Array.isArray(data)) {
               setActivity(data);
             }
           }

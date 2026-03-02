@@ -30,21 +30,6 @@ interface Booking {
 }
 
 // ---------------------------------------------------------------------------
-// Mock data (fallback)
-// ---------------------------------------------------------------------------
-const mockUpcoming: Booking[] = [
-  { id: "1", className: "Yoga Flow", coach: "María García", date: "Mié 28 Ene", time: "07:00 - 08:00", location: "Sala Principal", color: "#22c55e", status: "confirmed" },
-  { id: "2", className: "HIIT Cardio", coach: "Carlos López", date: "Jue 29 Ene", time: "18:00 - 18:45", location: "Sala Principal", color: "#3b82f6", status: "confirmed" },
-  { id: "3", className: "Pilates Mat", coach: "María García", date: "Vie 30 Ene", time: "09:00 - 09:50", location: "Sala Yoga", color: "#f59e0b", status: "waitlist" },
-];
-
-const mockPast: Booking[] = [
-  { id: "4", className: "Yoga Flow", coach: "María García", date: "Lun 26 Ene", time: "07:00 - 08:00", location: "Sala Principal", color: "#22c55e", status: "completed" },
-  { id: "5", className: "CrossFit", coach: "Carlos López", date: "Dom 25 Ene", time: "10:00 - 11:00", location: "Sala Principal", color: "#f43f5e", status: "completed" },
-  { id: "6", className: "Meditación", coach: "Laura Rdz", date: "Sáb 24 Ene", time: "09:00 - 09:30", location: "Sala Yoga", color: "#8b5cf6", status: "no_show" },
-];
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 const statusLabels: Record<string, string> = {
@@ -116,7 +101,7 @@ export default function MisReservasPage() {
       if (upData && Array.isArray(upData)) {
         setUpcoming(upData.map(mapBooking));
       } else {
-        setUpcoming(mockUpcoming);
+        setUpcoming([]);
       }
 
       if (pastData && Array.isArray(pastData)) {
@@ -126,16 +111,16 @@ export default function MisReservasPage() {
         const pastOnly = all.filter((b) => !upcomingStatuses.has(b.status));
         // Only use separated past if we got separate upcoming already
         if (upData && Array.isArray(upData)) {
-          setPast(pastOnly.length > 0 ? pastOnly : mockPast);
+          setPast(pastOnly);
         } else {
-          setPast(all.length > 0 ? all : mockPast);
+          setPast(all);
         }
       } else {
-        setPast(mockPast);
+        setPast([]);
       }
     } catch {
-      setUpcoming(mockUpcoming);
-      setPast(mockPast);
+      setUpcoming([]);
+      setPast([]);
     } finally {
       setLoading(false);
     }
