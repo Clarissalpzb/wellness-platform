@@ -6,11 +6,15 @@ import { unauthorized, badRequest, success } from "@/lib/api-helpers";
 export async function GET(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return unauthorized();
-  const orgId = (session.user as any).organizationId;
+  const userOrgId = (session.user as any).organizationId as string | null;
 
   const { searchParams } = new URL(req.url);
   const dateParam = searchParams.get("date");
   const dayOfWeekParam = searchParams.get("dayOfWeek");
+  const orgIdParam = searchParams.get("orgId");
+
+  // Determine which org to query
+  const targetOrgId = orgIdParam || userOrgId;
 
   let dayOfWeek: number;
   let targetDate: Date;
@@ -32,12 +36,17 @@ export async function GET(req: NextRequest) {
     dayOfWeek = targetDate.getDay();
   }
 
+  // If no org to query, return empty
+  if (!targetOrgId) {
+    return success([]);
+  }
+
   const dateStart = new Date(targetDate.toISOString().split("T")[0]);
   const dateEnd = new Date(dateStart.getTime() + 86400000);
 
   const schedules = await db.classSchedule.findMany({
     where: {
-      class: { organizationId: orgId, isActive: true },
+      class: { organizationId: targetOrgId, isActive: true },
       dayOfWeek,
       isRecurring: true,
       isCancelled: false,
@@ -51,6 +60,7 @@ export async function GET(req: NextRequest) {
           maxCapacity: true,
           category: true,
           level: true,
+          organizationId: true,
         },
       },
       location: { select: { name: true } },
@@ -88,6 +98,7 @@ export async function GET(req: NextRequest) {
       : "",
     enrolled: s.bookings.length,
     available: s.class.maxCapacity - s.bookings.length,
+    organizationId: s.class.organizationId,
   }));
 
   return success(result);

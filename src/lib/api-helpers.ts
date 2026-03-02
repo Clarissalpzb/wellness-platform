@@ -9,8 +9,8 @@ export async function getSessionOrThrow() {
   return session;
 }
 
-export function getOrgId(session: any): string {
-  return session.user.organizationId;
+export function getOrgId(session: any): string | null {
+  return session.user.organizationId ?? null;
 }
 
 export function unauthorized() {

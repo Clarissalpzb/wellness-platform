@@ -70,7 +70,6 @@ export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user?.id) return unauthorized();
   const userId = session.user.id;
-  const orgId = (session.user as any).organizationId;
 
   let body: any;
   try {
@@ -89,11 +88,11 @@ export async function POST(req: NextRequest) {
     return badRequest("Fecha inválida");
   }
 
-  // Verify the schedule exists and belongs to user's organization
+  // Verify the schedule exists and is active (cross-org booking allowed)
   const schedule = await db.classSchedule.findFirst({
     where: {
       id: classScheduleId,
-      class: { organizationId: orgId, isActive: true },
+      class: { isActive: true },
       isCancelled: false,
     },
     include: {

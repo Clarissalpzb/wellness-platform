@@ -33,11 +33,18 @@ interface ScheduleItem {
   level: string;
   location: string;
   category: string;
-  studio: string;
+  organizationId: string;
 }
 
-type StudioName = "Reformee" | "Raw Cycling" | "Hotflow";
-type StudioFilter = "all" | StudioName;
+interface Studio {
+  id: string;
+  name: string;
+  slug: string;
+  logo: string | null;
+  settings: Record<string, any>;
+}
+
+type StudioFilter = "all" | string;
 type TabName = "sesiones" | "paquetes" | "ubicacion";
 
 interface PackageItem {
@@ -50,46 +57,31 @@ interface PackageItem {
 }
 
 // ---------------------------------------------------------------------------
-// Studio constants
+// Color palette for studios (assigned dynamically by index)
 // ---------------------------------------------------------------------------
-const STUDIO_COLORS: Record<string, string> = {
-  Reformee: "#a855f7",
-  "Raw Cycling": "#f59e0b",
-  Hotflow: "#ef4444",
-};
+const PALETTE = [
+  "#a855f7", "#f59e0b", "#ef4444", "#3b82f6", "#10b981",
+  "#ec4899", "#8b5cf6", "#f97316", "#06b6d4", "#84cc16",
+];
+const GRADIENT_PALETTE = [
+  "from-purple-950 via-purple-900 to-purple-800",
+  "from-amber-950 via-amber-900 to-amber-800",
+  "from-red-950 via-red-900 to-red-800",
+  "from-blue-950 via-blue-900 to-blue-800",
+  "from-emerald-950 via-emerald-900 to-emerald-800",
+  "from-pink-950 via-pink-900 to-pink-800",
+  "from-violet-950 via-violet-900 to-violet-800",
+  "from-orange-950 via-orange-900 to-orange-800",
+  "from-cyan-950 via-cyan-900 to-cyan-800",
+  "from-lime-950 via-lime-900 to-lime-800",
+];
 
-const STUDIO_HERO_GRADIENT: Record<string, string> = {
-  Reformee: "from-purple-950 via-purple-900 to-purple-800",
-  "Raw Cycling": "from-amber-950 via-amber-900 to-amber-800",
-  Hotflow: "from-red-950 via-red-900 to-red-800",
-};
-
-const STUDIO_INFO: Record<string, { address: string; description: string }> = {
-  Reformee: {
-    address: "Av. Paseo de la Reforma 222, CDMX",
-    description: "Pilates reformer de alta intensidad para transformar tu cuerpo y mente.",
-  },
-  "Raw Cycling": {
-    address: "Calle Masaryk 101, Polanco, CDMX",
-    description: "Cycling inmersivo con música en vivo y experiencia sensorial única.",
-  },
-  Hotflow: {
-    address: "Av. Presidente Masaryk 460, Polanco, CDMX",
-    description: "Hot yoga y flow en un espacio diseñado para reconectar contigo.",
-  },
-};
-
-const STUDIO_DISTANCES: Record<string, string> = {
-  Reformee: "A 1.2 Km de distancia",
-  "Raw Cycling": "A 2.5 Km de distancia",
-  Hotflow: "A 0.8 Km de distancia",
-};
-
-const STUDIO_PRICES: Record<string, number> = {
-  Reformee: 350,
-  "Raw Cycling": 250,
-  Hotflow: 280,
-};
+function getStudioColor(index: number) {
+  return PALETTE[index % PALETTE.length];
+}
+function getStudioGradient(index: number) {
+  return GRADIENT_PALETTE[index % GRADIENT_PALETTE.length];
+}
 
 const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   Reformer: "Clase en máquina de Pilates Reformer. Trabaja fuerza, flexibilidad y control corporal mediante movimientos controlados y precisos con resistencia ajustable.",
@@ -98,28 +90,6 @@ const CATEGORY_DESCRIPTIONS: Record<string, string> = {
   Cycling: "Clase de ciclismo indoor de alta energía al ritmo de la música. Quema calorías, mejora resistencia cardiovascular y fortalece piernas.",
   Fuerza: "Entrenamiento de fuerza funcional centrado en fortalecer el core, mejorar la flexibilidad y alinear el cuerpo mediante movimientos controlados.",
 };
-
-const STUDIO_CANCELLATION: Record<string, { type: string; text: string }> = {
-  Reformee: { type: "Moderadamente flexible", text: "Podrás cancelar hasta 4 horas antes del inicio de la sesión para recibir un reembolso." },
-  "Raw Cycling": { type: "Moderadamente flexible", text: "Podrás cancelar hasta 4 horas antes del inicio de la sesión para recibir un reembolso." },
-  Hotflow: { type: "Flexible", text: "Podrás cancelar hasta 2 horas antes del inicio de la sesión para recibir un reembolso." },
-};
-
-const STUDIOS: StudioName[] = ["Reformee", "Raw Cycling", "Hotflow"];
-
-// ---------------------------------------------------------------------------
-// Packages (empty until fetched from API)
-// ---------------------------------------------------------------------------
-const PACKAGES: Record<StudioName, PackageItem[]> = {
-  Reformee: [],
-  "Raw Cycling": [],
-  Hotflow: [],
-};
-
-// ---------------------------------------------------------------------------
-// Schedule (empty until fetched from API)
-// ---------------------------------------------------------------------------
-const mockSchedule: ScheduleItem[] = [];
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -213,8 +183,21 @@ export default function ReservarPage() {
   const todayIso = new Date().toISOString().slice(0, 10);
   const todayIndex = dates.findIndex((d) => d.iso === todayIso);
 
-  // ── View layer: null = browse, StudioName = studio profile ──
-  const [viewingStudio, setViewingStudio] = useState<StudioName | null>(null);
+  // ── Studios from API ──
+  const [studios, setStudios] = useState<Studio[]>([]);
+  const [studiosLoading, setStudiosLoading] = useState(true);
+
+  // Build lookup maps from studios
+  const studioMap = useMemo(() => {
+    const map: Record<string, Studio & { color: string; gradient: string; index: number }> = {};
+    studios.forEach((s, i) => {
+      map[s.id] = { ...s, color: getStudioColor(i), gradient: getStudioGradient(i), index: i };
+    });
+    return map;
+  }, [studios]);
+
+  // ── View layer: null = browse, studioId = studio profile ──
+  const [viewingStudioId, setViewingStudioId] = useState<string | null>(null);
 
   // ── Browse view state ──
   const [selectedDay, setSelectedDay] = useState(todayIndex >= 0 ? todayIndex : 0);
@@ -239,11 +222,12 @@ export default function ReservarPage() {
 
   // ── Derived ──
   const selectedDateIso = dates[selectedDay]?.iso ?? "";
+  const viewingStudio = viewingStudioId ? studioMap[viewingStudioId] : null;
 
   const availableCategories = useMemo(() => {
     const source = studioFilter === "all"
       ? schedule
-      : schedule.filter((c) => c.studio === studioFilter);
+      : schedule.filter((c) => c.organizationId === studioFilter);
     const cats = Array.from(new Set(source.map((c) => c.category)));
     cats.sort();
     return cats;
@@ -258,7 +242,7 @@ export default function ReservarPage() {
   const filteredSchedule = useMemo(() => {
     const searchLower = search.toLowerCase().trim();
     return schedule.filter((cls) => {
-      if (studioFilter !== "all" && cls.studio !== studioFilter) return false;
+      if (studioFilter !== "all" && cls.organizationId !== studioFilter) return false;
       if (selectedCategory !== "all" && cls.category !== selectedCategory) return false;
       if (selectedLevel !== "all" && cls.level !== selectedLevel) return false;
       if (searchLower && !cls.name.toLowerCase().includes(searchLower) && !cls.coach.toLowerCase().includes(searchLower)) return false;
@@ -276,39 +260,60 @@ export default function ReservarPage() {
   };
 
   // Studio profile derived
-  const profileStudio = viewingStudio;
-  const profileColor = profileStudio ? STUDIO_COLORS[profileStudio] : "";
-  const profileGradient = profileStudio ? STUDIO_HERO_GRADIENT[profileStudio] : "";
-  const profileInfo = profileStudio ? STUDIO_INFO[profileStudio] : null;
-  const profilePackages = profileStudio ? PACKAGES[profileStudio] : [];
-  const profileClasses = profileStudio ? schedule.filter((c) => c.studio === profileStudio) : [];
+  const profileColor = viewingStudio?.color ?? "";
+  const profileGradient = viewingStudio?.gradient ?? "";
+  const profileClasses = viewingStudioId ? schedule.filter((c) => c.organizationId === viewingStudioId) : [];
   const profileDate = dates[selectedDay];
   const profileMonthLabel = profileDate
     ? fullMonthNames[profileDate.monthIdx].charAt(0).toUpperCase() + fullMonthNames[profileDate.monthIdx].slice(1)
     : "";
 
-  // ── Fetch schedule ──
+  // ── Fetch studios ──
+  useEffect(() => {
+    async function loadStudios() {
+      try {
+        const res = await fetch("/api/studios");
+        if (res.ok) {
+          const data: Studio[] = await res.json();
+          setStudios(data);
+        }
+      } catch {
+        // silently fail
+      } finally {
+        setStudiosLoading(false);
+      }
+    }
+    loadStudios();
+  }, []);
+
+  // ── Fetch schedule for all studios ──
   const fetchSchedule = useCallback(async (dateStr: string) => {
+    if (studios.length === 0) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/schedule?date=${dateStr}`);
-      if (!res.ok) throw new Error("API error");
-      const data: ScheduleItem[] = await res.json();
-      setSchedule(data);
+      const allSchedules = await Promise.all(
+        studios.map(async (studio) => {
+          const res = await fetch(`/api/schedule?date=${dateStr}&orgId=${studio.id}`);
+          if (!res.ok) return [];
+          const data: ScheduleItem[] = await res.json();
+          return data;
+        })
+      );
+      setSchedule(allSchedules.flat());
     } catch {
       setSchedule([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [studios]);
 
   useEffect(() => {
-    if (selectedDateIso) fetchSchedule(selectedDateIso);
-  }, [selectedDateIso, fetchSchedule]);
+    if (selectedDateIso && studios.length > 0) fetchSchedule(selectedDateIso);
+  }, [selectedDateIso, fetchSchedule, studios]);
 
   // ── Navigation handlers ──
-  function openStudioProfile(studio: StudioName) {
-    setViewingStudio(studio);
+  function openStudioProfile(studioId: string) {
+    setViewingStudioId(studioId);
     setActiveTab("sesiones");
     setExpandedPackage(null);
     setPurchasedId(null);
@@ -317,7 +322,7 @@ export default function ReservarPage() {
   }
 
   function closeStudioProfile() {
-    setViewingStudio(null);
+    setViewingStudioId(null);
     setSelectedClassId(null);
   }
 
@@ -331,7 +336,7 @@ export default function ReservarPage() {
   }
 
   function openClassFromBrowse(cls: ScheduleItem) {
-    setViewingStudio(cls.studio as StudioName);
+    setViewingStudioId(cls.organizationId);
     setActiveTab("sesiones");
     setSelectedClassId(cls.id);
     setSelectedSpot(null);
@@ -383,6 +388,15 @@ export default function ReservarPage() {
   }
 
   const detailClass = schedule.find((c) => c.id === selectedClassId);
+  const detailStudio = detailClass ? studioMap[detailClass.organizationId] : null;
+
+  // Helper to get studio name for a schedule item
+  function getStudioName(orgId: string) {
+    return studioMap[orgId]?.name ?? "";
+  }
+  function getStudioColorById(orgId: string) {
+    return studioMap[orgId]?.color ?? "#6b7280";
+  }
 
   // ═══════════════════════════════════════════════════════════════════════
   // RENDER
@@ -401,32 +415,36 @@ export default function ReservarPage() {
       <div className="space-y-3">
         {/* Studio pills */}
         <div className="flex gap-2 overflow-x-auto pb-1">
-          {(["all", ...STUDIOS] as StudioFilter[]).map((studio) => (
-            <button
-              key={studio}
-              onClick={() => {
-                if (studio === "all") {
-                  setStudioFilter("all");
-                } else {
-                  openStudioProfile(studio);
-                }
-              }}
-              className={cn(
-                "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
-                studioFilter === studio && studio === "all"
-                  ? "bg-neutral-900 text-white"
-                  : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"
-              )}
-            >
-              {studio !== "all" && (
+          <button
+            onClick={() => setStudioFilter("all")}
+            className={cn(
+              "flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors",
+              studioFilter === "all"
+                ? "bg-neutral-900 text-white"
+                : "bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"
+            )}
+          >
+            Todas
+          </button>
+          {studiosLoading ? (
+            <div className="flex items-center px-4">
+              <Loader2 className="h-4 w-4 animate-spin text-neutral-400" />
+            </div>
+          ) : (
+            studios.map((studio, i) => (
+              <button
+                key={studio.id}
+                onClick={() => openStudioProfile(studio.id)}
+                className="flex items-center gap-1.5 px-4 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors bg-white border border-neutral-200 text-neutral-600 hover:border-neutral-400"
+              >
                 <span
                   className="h-2 w-2 rounded-full shrink-0"
-                  style={{ backgroundColor: STUDIO_COLORS[studio] }}
+                  style={{ backgroundColor: getStudioColor(i) }}
                 />
-              )}
-              {studio === "all" ? "Todas" : studio}
-            </button>
-          ))}
+                {studio.name}
+              </button>
+            ))
+          )}
         </div>
 
         {/* Search bar */}
@@ -481,7 +499,7 @@ export default function ReservarPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {studioFilter !== "all" && (
               <Badge variant="secondary" className="gap-1 cursor-pointer" onClick={() => setStudioFilter("all")}>
-                {studioFilter}
+                {getStudioName(studioFilter)}
                 <X className="h-3 w-3" />
               </Badge>
             )}
@@ -560,6 +578,8 @@ export default function ReservarPage() {
           {filteredSchedule.map((cls) => {
             const full = cls.enrolled >= cls.capacity;
             const spotsLeft = cls.capacity - cls.enrolled;
+            const studioColor = getStudioColorById(cls.organizationId);
+            const studioName = getStudioName(cls.organizationId);
             return (
               <Card
                 key={cls.id}
@@ -577,9 +597,9 @@ export default function ReservarPage() {
                       <div className="flex items-center gap-2">
                         <h3 className="font-semibold">{cls.name}</h3>
                         <Badge variant="outline" className="text-xs">{cls.level}</Badge>
-                        {studioFilter === "all" && (
-                          <Badge className="text-xs text-white" style={{ backgroundColor: STUDIO_COLORS[cls.studio] }}>
-                            {cls.studio}
+                        {studioFilter === "all" && studioName && (
+                          <Badge className="text-xs text-white" style={{ backgroundColor: studioColor }}>
+                            {studioName}
                           </Badge>
                         )}
                       </div>
@@ -622,7 +642,7 @@ export default function ReservarPage() {
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* STUDIO PROFILE OVERLAY                                            */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {viewingStudio && profileInfo && (
+      {viewingStudio && (
         <div className="fixed inset-0 z-40 bg-neutral-50">
           <div ref={profileScrollRef} className="h-full overflow-y-auto">
             {/* Hero */}
@@ -633,7 +653,7 @@ export default function ReservarPage() {
               >
                 <ChevronLeft className="h-5 w-5 text-white" />
               </button>
-              <h1 className="text-3xl font-bold tracking-tight">{viewingStudio}</h1>
+              <h1 className="text-3xl font-bold tracking-tight">{viewingStudio.name}</h1>
             </div>
 
             {/* Logo + info */}
@@ -642,19 +662,9 @@ export default function ReservarPage() {
                 className="w-20 h-20 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg border-4 border-white"
                 style={{ backgroundColor: profileColor }}
               >
-                {viewingStudio[0]}
+                {viewingStudio.name[0]}
               </div>
-              <h2 className="mt-3 text-lg font-semibold text-neutral-900">{viewingStudio}</h2>
-              <p className="text-sm font-medium mt-1" style={{ color: profileColor }}>
-                {STUDIO_DISTANCES[viewingStudio]}
-              </p>
-              <p className="flex items-center gap-1 text-sm text-neutral-500 mt-1">
-                <MapPin className="w-3.5 h-3.5" />
-                {profileInfo.address}
-              </p>
-              <p className="text-sm text-neutral-500 mt-2 max-w-xs text-center px-4">
-                {profileInfo.description}
-              </p>
+              <h2 className="mt-3 text-lg font-semibold text-neutral-900">{viewingStudio.name}</h2>
             </div>
 
             {/* Tabs */}
@@ -789,63 +799,8 @@ export default function ReservarPage() {
 
               {/* ═══ PAQUETES ═══ */}
               {activeTab === "paquetes" && (
-                <div className="space-y-4">
-                  {profilePackages.map((pkg) => {
-                    const { whole, cents } = formatPrice(pkg.price);
-                    const isExpanded = expandedPackage === pkg.id;
-                    const isPurchased = purchasedId === pkg.id;
-                    return (
-                      <Card key={pkg.id} className="overflow-hidden">
-                        <CardContent className="p-5">
-                          <h3 className="text-lg font-bold text-neutral-900">{pkg.name}</h3>
-                          <p className="mt-1 text-3xl font-extrabold text-neutral-900">
-                            ${whole}
-                            <sup className="text-base font-semibold align-super ml-0.5">{cents}</sup>
-                          </p>
-                          <div className="my-4 border-t border-neutral-200" />
-                          <ul className="space-y-2.5 text-sm text-neutral-700">
-                            <li className="flex items-start gap-2">
-                              <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: profileColor }} />
-                              {sessionLabel(pkg.sessions)}
-                            </li>
-                            <li className="flex items-start gap-2">
-                              <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: profileColor }} />
-                              <span>
-                                Válido en {pkg.validClasses.slice(0, 2).join(", ")}
-                                {pkg.validClasses.length > 2 && (
-                                  <>
-                                    {" "}
-                                    <button
-                                      onClick={() => setExpandedPackage(isExpanded ? null : pkg.id)}
-                                      className="inline-flex items-center gap-0.5 text-xs font-medium underline underline-offset-2"
-                                      style={{ color: profileColor }}
-                                    >
-                                      Ver detalles
-                                      <ChevronDown className={cn("w-3 h-3 transition-transform", isExpanded && "rotate-180")} />
-                                    </button>
-                                  </>
-                                )}
-                              </span>
-                            </li>
-                            {isExpanded && pkg.validClasses.length > 2 && (
-                              <li className="ml-6 text-xs text-neutral-500">{pkg.validClasses.join(", ")}</li>
-                            )}
-                            <li className="flex items-start gap-2">
-                              <CheckCircle2 className="w-4 h-4 mt-0.5 shrink-0" style={{ color: profileColor }} />
-                              Vigencia {pkg.validDays} día{pkg.validDays > 1 ? "s" : ""}
-                            </li>
-                          </ul>
-                          <Button
-                            className="w-full mt-5 text-white"
-                            style={{ backgroundColor: profileColor }}
-                            onClick={() => handleBuy(pkg.id)}
-                          >
-                            {isPurchased ? "Próximamente — Pago con Stripe" : "Comprar"}
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
+                <div className="text-center py-16">
+                  <p className="text-neutral-500">Paquetes próximamente</p>
                 </div>
               )}
 
@@ -855,8 +810,7 @@ export default function ReservarPage() {
                   <div className="flex items-start gap-3">
                     <MapPin className="w-5 h-5 text-neutral-500 mt-0.5 shrink-0" />
                     <div>
-                      <p className="font-semibold text-neutral-900">{viewingStudio}</p>
-                      <p className="text-sm text-neutral-500">{profileInfo.address}</p>
+                      <p className="font-semibold text-neutral-900">{viewingStudio.name}</p>
                     </div>
                   </div>
                   <div className="rounded-2xl bg-neutral-200 flex items-center justify-center h-64">
@@ -876,10 +830,9 @@ export default function ReservarPage() {
         const cls = detailClass;
         const full = cls.enrolled >= cls.capacity;
         const takenSpots = generateTakenSpots(cls.id, cls.enrolled, cls.capacity);
-        const price = STUDIO_PRICES[cls.studio] ?? 250;
         const description = CATEGORY_DESCRIPTIONS[cls.category] ?? "";
-        const cancellation = STUDIO_CANCELLATION[cls.studio];
-        const heroGradient = STUDIO_HERO_GRADIENT[cls.studio] ?? "from-neutral-900 to-neutral-700";
+        const studioColor = detailStudio?.color ?? "#6b7280";
+        const heroGradient = detailStudio?.gradient ?? "from-neutral-900 to-neutral-700";
 
         return (
           <div className="fixed inset-0 z-50 bg-white">
@@ -900,11 +853,8 @@ export default function ReservarPage() {
                 </div>
 
                 <div className="px-5 pt-5 space-y-5">
-                  <div className="flex items-start justify-between gap-4">
+                  <div>
                     <h1 className="text-2xl font-bold text-neutral-900 leading-tight">{cls.name}</h1>
-                    <p className="text-2xl font-bold text-neutral-900 shrink-0">
-                      <span className="text-sm align-top">$</span>{price}<sup className="text-sm font-bold">00</sup>
-                    </p>
                   </div>
 
                   {description && (
@@ -936,7 +886,7 @@ export default function ReservarPage() {
                   <div className="flex items-center gap-3 py-4 border-t border-b border-neutral-100">
                     <div
                       className="h-12 w-12 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                      style={{ backgroundColor: STUDIO_COLORS[cls.studio] }}
+                      style={{ backgroundColor: studioColor }}
                     >
                       {getCoachInitials(cls.coach)}
                     </div>
@@ -958,7 +908,7 @@ export default function ReservarPage() {
                         <div className="flex justify-center mb-4">
                           <div
                             className="h-10 w-10 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                            style={{ backgroundColor: STUDIO_COLORS[cls.studio] }}
+                            style={{ backgroundColor: studioColor }}
                           >
                             {getCoachInitials(cls.coach)}
                           </div>
@@ -988,18 +938,6 @@ export default function ReservarPage() {
                       </div>
                     )}
                   </div>
-
-                  {cancellation && (
-                    <div className="flex items-start gap-3 pt-2">
-                      <CalendarDays className="h-5 w-5 text-neutral-400 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-neutral-700">Política de cancelación</p>
-                        <p className="text-sm text-neutral-500 mt-0.5">
-                          <span className="font-medium">{cancellation.type}</span>: {cancellation.text}
-                        </p>
-                      </div>
-                    </div>
-                  )}
 
                   {bookingStatus === "error" && (
                     <div className="flex items-center gap-2 bg-red-50 text-red-800 text-sm p-4 rounded-xl">

@@ -76,7 +76,7 @@ model User {
   emailVerified  DateTime?
   passwordHash   String?
   role           Role     @default(CLIENT)
-  organizationId String
+  organizationId String?
   locationId     String?
   firstName      String
   lastName       String
@@ -88,7 +88,7 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization     Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization     Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   accounts         Account[]
   sessions         Session[]
   bookings         Booking[]

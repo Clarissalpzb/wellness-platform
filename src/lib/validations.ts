@@ -69,7 +69,7 @@ export const clientRegisterSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Mínimo 6 caracteres"),
   phone: z.string().optional(),
-  slug: z.string().min(1, "Slug requerido"),
+  slug: z.string().optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

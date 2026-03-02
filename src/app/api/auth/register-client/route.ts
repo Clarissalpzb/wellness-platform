@@ -8,15 +8,21 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = clientRegisterSchema.parse(body);
 
-    const organization = await db.organization.findUnique({
-      where: { slug: data.slug },
-    });
+    let organizationId: string | null = null;
 
-    if (!organization) {
-      return NextResponse.json(
-        { error: "Centro no encontrado" },
-        { status: 404 }
-      );
+    if (data.slug) {
+      const organization = await db.organization.findUnique({
+        where: { slug: data.slug },
+      });
+
+      if (!organization) {
+        return NextResponse.json(
+          { error: "Centro no encontrado" },
+          { status: 404 }
+        );
+      }
+
+      organizationId = organization.id;
     }
 
     const existingUser = await db.user.findUnique({
@@ -40,14 +46,14 @@ export async function POST(req: Request) {
         lastName: data.lastName,
         phone: data.phone || null,
         role: "CLIENT",
-        organizationId: organization.id,
+        ...(organizationId ? { organizationId } : {}),
       },
     });
 
     return NextResponse.json({
       success: true,
       userId: user.id,
-      organizationId: organization.id,
+      organizationId,
     });
   } catch (error) {
     console.error("Client registration error:", error);
