@@ -338,7 +338,7 @@ export default function PerfilPage() {
                 </div>
               </div>
               <Separator className="my-4" />
-              <Link href="/app/paquetes">
+              <Link href="/app/reservar">
                 <Button variant="outline" className="w-full">Renovar Paquete</Button>
               </Link>
             </CardContent>
