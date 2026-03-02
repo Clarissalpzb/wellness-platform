@@ -7,60 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useUIStore } from "@/stores/ui-store";
 import { cn } from "@/lib/utils";
 
-const mockInsights = [
-  {
-    id: "1",
-    type: "revenue",
-    title: "Oportunidad de precio",
-    description: "Yoga Flow de las 18:00 tiene 95%+ ocupación y lista de espera frecuente. Considera aumentar precio o agregar otra sesión.",
-    impactScore: 9,
-    confidenceScore: 8,
-    icon: DollarSign,
-    iconBg: "bg-primary-100",
-    iconColor: "text-primary-600",
-    status: "NEW",
-    suggestedActions: ["Agregar clase adicional", "Ajustar precio"],
-  },
-  {
-    id: "2",
-    type: "retention",
-    title: "3 clientes en riesgo de churn",
-    description: "Sofía H., Diego T. y Valentina R. han reducido su frecuencia de visitas más del 50% en las últimas 4 semanas.",
-    impactScore: 8,
-    confidenceScore: 7,
-    icon: Users,
-    iconBg: "bg-accent-rose-light",
-    iconColor: "text-accent-rose",
-    status: "NEW",
-    suggestedActions: ["Enviar mensaje personalizado", "Ofrecer clase cortesía"],
-  },
-  {
-    id: "3",
-    type: "schedule",
-    title: "Baja ocupación martes 10:00",
-    description: "Meditación de martes 10:00 ha tenido menos del 40% de ocupación por 4 semanas consecutivas.",
-    impactScore: 6,
-    confidenceScore: 9,
-    icon: Calendar,
-    iconBg: "bg-accent-amber-light",
-    iconColor: "text-accent-amber",
-    status: "NEW",
-    suggestedActions: ["Cambiar horario", "Promocionar clase", "Cancelar temporalmente"],
-  },
-  {
-    id: "4",
-    type: "coach",
-    title: "Carlos López: coach estrella",
-    description: "Sus clases tienen la mayor tasa de retención (92%) y las mejores calificaciones. Considere incentivos adicionales.",
-    impactScore: 5,
-    confidenceScore: 8,
-    icon: TrendingUp,
-    iconBg: "bg-accent-blue-light",
-    iconColor: "text-accent-blue",
-    status: "SEEN",
-    suggestedActions: ["Ofrecer bonus", "Asignar más clases"],
-  },
-];
+const mockInsights: any[] = [];
 
 function getImpactLabel(score: number): string {
   if (score >= 8) return "Alto";
@@ -94,7 +41,11 @@ export function InsightPanel() {
 
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-3">
-          {mockInsights.map((insight) => (
+          {mockInsights.length === 0 ? (
+            <div className="text-center py-12 text-neutral-500">
+              <p>No hay insights disponibles</p>
+            </div>
+          ) : mockInsights.map((insight) => (
             <div
               key={insight.id}
               className={cn(
@@ -122,7 +73,7 @@ export function InsightPanel() {
                     </Badge>
                   </div>
                   <div className="flex flex-wrap gap-1 mt-2">
-                    {insight.suggestedActions.map((action) => (
+                    {insight.suggestedActions.map((action: string) => (
                       <Button key={action} variant="outline" size="sm" className="h-7 text-xs">
                         {action}
                       </Button>
