@@ -50,20 +50,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
       if (user) {
         token.name = user.name;
         token.email = user.email;
         token.role = (user as any).role;
         token.organizationId = (user as any).organizationId ?? null;
       }
+      // Fallback: if token has no name, fetch from DB
+      if (!token.name && token.sub) {
+        const dbUser = await db.user.findUnique({
+          where: { id: token.sub },
+          select: { firstName: true, lastName: true, email: true, role: true, organizationId: true },
+        });
+        if (dbUser) {
+          token.name = `${dbUser.firstName} ${dbUser.lastName}`;
+          token.email = dbUser.email;
+          token.role = dbUser.role;
+          token.organizationId = dbUser.organizationId ?? null;
+        }
+      }
       return token;
     },
     async session({ session, token }) {
       if (session.user) {
         session.user.id = token.sub!;
-        session.user.name = token.name ?? "";
-        session.user.email = token.email ?? "";
+        session.user.name = (token.name as string) ?? "";
+        session.user.email = (token.email as string) ?? "";
         (session.user as any).role = token.role;
         (session.user as any).organizationId = token.organizationId ?? null;
       }
