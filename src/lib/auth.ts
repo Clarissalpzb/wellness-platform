@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { db } from "./db";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   adapter: PrismaAdapter(db),
   session: { strategy: "jwt" },
   pages: {
@@ -50,25 +51,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user }) {
       if (user) {
+        token.id = user.id;
         token.name = user.name;
         token.email = user.email;
         token.role = (user as any).role;
         token.organizationId = (user as any).organizationId ?? null;
-      }
-      // Fallback: if token has no name, fetch from DB
-      if (!token.name && token.sub) {
-        const dbUser = await db.user.findUnique({
-          where: { id: token.sub },
-          select: { firstName: true, lastName: true, email: true, role: true, organizationId: true },
-        });
-        if (dbUser) {
-          token.name = `${dbUser.firstName} ${dbUser.lastName}`;
-          token.email = dbUser.email;
-          token.role = dbUser.role;
-          token.organizationId = dbUser.organizationId ?? null;
-        }
       }
       return token;
     },
