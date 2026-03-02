@@ -54,6 +54,8 @@ export default function CRMPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
 
+  const [formError, setFormError] = useState<string | null>(null);
+
   // Form state for select
   const [formChannel, setFormChannel] = useState("");
 
@@ -80,6 +82,7 @@ export default function CRMPage() {
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       name: formData.get("name") as string,
@@ -96,6 +99,9 @@ export default function CRMPage() {
       setShowCreate(false);
       setFormChannel("");
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
@@ -292,13 +298,18 @@ export default function CRMPage() {
         </TabsContent>
       </Tabs>
 
-      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+      <Dialog open={showCreate} onOpenChange={(open) => { if (!open) { setShowCreate(false); setFormChannel(""); setFormError(null); } else { setShowCreate(true); } }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Nueva Campaña</DialogTitle>
             <DialogDescription>Crea una nueva campaña de marketing</DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={handleCreate}>
+            {formError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {formError}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
               <Input id="name" name="name" placeholder="Ej: Bienvenida Enero" required />

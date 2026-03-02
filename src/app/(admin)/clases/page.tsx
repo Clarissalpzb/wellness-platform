@@ -31,6 +31,8 @@ export default function ClasesPage() {
   const [editItem, setEditItem] = useState<any>(null);
   const [search, setSearch] = useState("");
 
+  const [formError, setFormError] = useState<string | null>(null);
+
   // Form state for selects (not captured by FormData)
   const [formCategory, setFormCategory] = useState("");
   const [formLevel, setFormLevel] = useState("");
@@ -58,6 +60,7 @@ export default function ClasesPage() {
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       name: formData.get("name") as string,
@@ -79,12 +82,16 @@ export default function ClasesPage() {
       setFormCategory("");
       setFormLevel("");
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
   const handleEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editItem) return;
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       name: formData.get("name") as string,
@@ -106,6 +113,9 @@ export default function ClasesPage() {
       setFormCategory("");
       setFormLevel("");
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
@@ -126,6 +136,7 @@ export default function ClasesPage() {
     setEditItem(null);
     setFormCategory("");
     setFormLevel("");
+    setFormError(null);
   };
 
   const filtered = classes.filter((c) =>
@@ -242,6 +253,11 @@ export default function ClasesPage() {
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={isEditing ? handleEdit : handleCreate}>
+            {formError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {formError}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="name">Nombre</Label>
               <Input id="name" name="name" placeholder="Ej: Yoga Flow" defaultValue={editItem?.name || ""} required />

@@ -76,6 +76,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         nextUrl.pathname.startsWith("/usuarios") ||
         nextUrl.pathname.startsWith("/crm") ||
         nextUrl.pathname.startsWith("/pos") ||
+        nextUrl.pathname.startsWith("/settings") ||
         nextUrl.pathname.startsWith("/coach") ||
         nextUrl.pathname.startsWith("/app");
 

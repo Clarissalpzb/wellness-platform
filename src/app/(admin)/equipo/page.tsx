@@ -52,6 +52,8 @@ export default function EquipoPage() {
   const [editItem, setEditItem] = useState<any>(null);
   const [search, setSearch] = useState("");
 
+  const [formError, setFormError] = useState<string | null>(null);
+
   // Form state for select
   const [formRole, setFormRole] = useState("");
 
@@ -78,6 +80,7 @@ export default function EquipoPage() {
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       firstName: formData.get("firstName") as string,
@@ -95,12 +98,16 @@ export default function EquipoPage() {
       setShowCreate(false);
       setFormRole("");
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
   const handleEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editItem) return;
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       firstName: formData.get("firstName") as string,
@@ -118,6 +125,9 @@ export default function EquipoPage() {
       setEditItem(null);
       setFormRole("");
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
@@ -136,6 +146,7 @@ export default function EquipoPage() {
     setShowCreate(false);
     setEditItem(null);
     setFormRole("");
+    setFormError(null);
   };
 
   const filtered = staff.filter(
@@ -259,6 +270,11 @@ export default function EquipoPage() {
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={isEditing ? handleEdit : handleCreate}>
+            {formError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {formError}
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <Label htmlFor="firstName">Nombre</Label>

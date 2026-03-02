@@ -7,6 +7,15 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 
 interface Product {
   id: string;
@@ -28,6 +37,8 @@ export default function POSPage() {
   const [loading, setLoading] = useState(true);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [search, setSearch] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -86,6 +97,36 @@ export default function POSPage() {
     alert(`Pago con ${method} por $${total.toLocaleString()} MXN. Integración con Stripe POS próximamente.`);
   };
 
+  const handleCreateProduct = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setFormError(null);
+    const formData = new FormData(e.currentTarget);
+    const body = {
+      name: formData.get("name") as string,
+      price: Number(formData.get("price")),
+      category: formData.get("category") as string || undefined,
+      sku: formData.get("sku") as string || undefined,
+      stock: Number(formData.get("stock")) || 0,
+    };
+    const res = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (res.ok) {
+      setShowCreate(false);
+      fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
+    }
+  };
+
+  const closeDialog = () => {
+    setShowCreate(false);
+    setFormError(null);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -98,9 +139,15 @@ export default function POSPage() {
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
       {/* Products */}
       <div className="flex-1 space-y-4 overflow-y-auto">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Punto de Venta</h1>
-          <p className="text-sm text-neutral-500">Vende productos y servicios</p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-neutral-900">Punto de Venta</h1>
+            <p className="text-sm text-neutral-500">Vende productos y servicios</p>
+          </div>
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nuevo Producto
+          </Button>
         </div>
 
         <div className="relative max-w-sm">
@@ -209,6 +256,51 @@ export default function POSPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Product Dialog */}
+      <Dialog open={showCreate} onOpenChange={(open) => { if (!open) closeDialog(); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Nuevo Producto</DialogTitle>
+            <DialogDescription>Agrega un nuevo producto al inventario</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateProduct}>
+            {formError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {formError}
+              </div>
+            )}
+            <div className="space-y-2">
+              <Label htmlFor="name">Nombre</Label>
+              <Input id="name" name="name" placeholder="Ej: Mat de Yoga" required />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="price">Precio (MXN)</Label>
+                <Input id="price" name="price" type="number" step="0.01" placeholder="0" required />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoría</Label>
+                <Input id="category" name="category" placeholder="Ej: Accesorios" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="sku">SKU</Label>
+                <Input id="sku" name="sku" placeholder="Ej: MAT-001" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="stock">Stock</Label>
+                <Input id="stock" name="stock" type="number" placeholder="0" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
+              <Button type="submit">Crear Producto</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

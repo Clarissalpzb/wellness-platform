@@ -29,6 +29,7 @@ export default function EspaciosPage() {
   const [editLocation, setEditLocation] = useState<any>(null);
   const [showCreateSpace, setShowCreateSpace] = useState<string | null>(null);
   const [editSpace, setEditSpace] = useState<any>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
@@ -54,6 +55,7 @@ export default function EspaciosPage() {
   // Location handlers
   const handleCreateLocation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       name: formData.get("name") as string,
@@ -68,12 +70,16 @@ export default function EspaciosPage() {
     if (res.ok) {
       setShowCreateLocation(false);
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
   const handleEditLocation = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editLocation) return;
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       name: formData.get("name") as string,
@@ -88,6 +94,9 @@ export default function EspaciosPage() {
     if (res.ok) {
       setEditLocation(null);
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
@@ -101,6 +110,7 @@ export default function EspaciosPage() {
   const handleCreateSpace = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!showCreateSpace) return;
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       name: formData.get("name") as string,
@@ -116,12 +126,16 @@ export default function EspaciosPage() {
     if (res.ok) {
       setShowCreateSpace(null);
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
   const handleEditSpace = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editSpace) return;
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
       name: formData.get("name") as string,
@@ -136,6 +150,9 @@ export default function EspaciosPage() {
     if (res.ok) {
       setEditSpace(null);
       fetchData();
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setFormError(err.error || "Error al guardar");
     }
   };
 
@@ -148,11 +165,13 @@ export default function EspaciosPage() {
   const closeLocationDialog = () => {
     setShowCreateLocation(false);
     setEditLocation(null);
+    setFormError(null);
   };
 
   const closeSpaceDialog = () => {
     setShowCreateSpace(null);
     setEditSpace(null);
+    setFormError(null);
   };
 
   if (loading) {
@@ -271,6 +290,11 @@ export default function EspaciosPage() {
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={isEditingLocation ? handleEditLocation : handleCreateLocation}>
+            {formError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {formError}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="loc-name">Nombre</Label>
               <Input id="loc-name" name="name" placeholder="Ej: Sucursal Norte" defaultValue={editLocation?.name || ""} required />
@@ -301,6 +325,11 @@ export default function EspaciosPage() {
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={isEditingSpace ? handleEditSpace : handleCreateSpace}>
+            {formError && (
+              <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                {formError}
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="space-name">Nombre</Label>
               <Input id="space-name" name="name" placeholder="Ej: Sala Principal" defaultValue={editSpace?.name || ""} required />
