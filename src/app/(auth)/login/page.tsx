@@ -35,7 +35,17 @@ export default function LoginPage() {
       if (!res.ok) {
         setError("Credenciales inválidas");
       } else {
-        window.location.href = "/dashboard";
+        // Role-based redirect
+        const sessionRes = await fetch("/api/auth/session");
+        const session = await sessionRes.json();
+        const role = session?.user?.role;
+        if (role === "CLIENT") {
+          window.location.href = "/app/reservar";
+        } else if (role === "COACH") {
+          window.location.href = "/coach";
+        } else {
+          window.location.href = "/dashboard";
+        }
       }
     } catch {
       setError("Error al iniciar sesión");

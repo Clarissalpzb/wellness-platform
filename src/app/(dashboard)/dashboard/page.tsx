@@ -4,18 +4,34 @@ import { RevenueChart } from "@/components/charts/revenue-chart";
 import { BookingsPieChart } from "@/components/charts/bookings-pie-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
+import { InviteLinkCard } from "./invite-link-card";
 
 const topPackages: any[] = [];
 
 const newCustomers: any[] = [];
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const session = await auth();
+  const orgId = (session?.user as any)?.organizationId;
+
+  let orgSlug: string | null = null;
+  if (orgId) {
+    const org = await db.organization.findUnique({
+      where: { id: orgId },
+      select: { slug: true },
+    });
+    orgSlug = org?.slug ?? null;
+  }
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-neutral-900">Dashboard</h1>
         <p className="text-sm text-neutral-500">Resumen general de tu centro</p>
       </div>
+
+      {orgSlug && <InviteLinkCard slug={orgSlug} />}
 
       {/* Metrics */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

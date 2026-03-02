@@ -2,19 +2,29 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Calendar, User, BarChart3, Menu } from "lucide-react";
+import { Home, Calendar, User, BarChart3, Menu, Package, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const mobileNavItems = [
+const adminNavItems = [
   { name: "Inicio", href: "/dashboard", icon: Home },
-  { name: "Clases", href: "/app/reservar", icon: Calendar },
+  { name: "Clases", href: "/clases", icon: Calendar },
   { name: "Métricas", href: "/dashboard/operaciones", icon: BarChart3 },
   { name: "Perfil", href: "/app/perfil", icon: User },
-  { name: "Más", href: "/clases", icon: Menu },
+  { name: "Más", href: "/equipo", icon: Menu },
+];
+
+const clientNavItems = [
+  { name: "Inicio", href: "/app/reservar", icon: Home },
+  { name: "Reservas", href: "/app/mis-reservas", icon: Calendar },
+  { name: "Paquetes", href: "/app/paquetes", icon: Package },
+  { name: "Amigos", href: "/app/amigos", icon: Users },
+  { name: "Perfil", href: "/app/perfil", icon: User },
 ];
 
 export function MobileNav() {
   const pathname = usePathname();
+  const isClientRoute = pathname.startsWith("/app");
+  const mobileNavItems = isClientRoute ? clientNavItems : adminNavItems;
 
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-neutral-200 px-2 pb-safe">

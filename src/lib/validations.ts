@@ -63,8 +63,18 @@ export const campaignSchema = z.object({
   scheduledAt: z.string().optional(),
 });
 
+export const clientRegisterSchema = z.object({
+  firstName: z.string().min(2, "Mínimo 2 caracteres"),
+  lastName: z.string().min(2, "Mínimo 2 caracteres"),
+  email: z.string().email("Email inválido"),
+  password: z.string().min(6, "Mínimo 6 caracteres"),
+  phone: z.string().optional(),
+  slug: z.string().min(1, "Slug requerido"),
+});
+
 export type LoginInput = z.infer<typeof loginSchema>;
 export type RegisterInput = z.infer<typeof registerSchema>;
+export type ClientRegisterInput = z.infer<typeof clientRegisterSchema>;
 export type ClassInput = z.infer<typeof classSchema>;
 export type PackageInput = z.infer<typeof packageSchema>;
 export type ScheduleInput = z.infer<typeof scheduleSchema>;
