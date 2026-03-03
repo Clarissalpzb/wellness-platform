@@ -80,7 +80,10 @@ export default function ClasesPage() {
     fetchData();
     fetch("/api/locations")
       .then((r) => (r.ok ? r.json() : []))
-      .then(setLocations)
+      .then((locs: any[]) => {
+        setLocations(locs);
+        if (locs.length === 1) setScheduleLocation(locs[0].id);
+      })
       .catch(() => setLocations([]));
     fetch("/api/staff")
       .then((r) => (r.ok ? r.json() : []))
@@ -206,7 +209,7 @@ export default function ClasesPage() {
   const resetScheduleForm = () => {
     setScheduleDays([]);
     setScheduleStart("");
-    setScheduleLocation("");
+    setScheduleLocation(locations.length === 1 ? locations[0].id : "");
     setScheduleSpace("");
     setScheduleCoach("");
     setScheduleError(null);
