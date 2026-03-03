@@ -598,7 +598,7 @@ export default function ClasesPage() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Espacio</Label>
+                  <Label className="text-xs">Salón</Label>
                   <Select value={scheduleSpace} onValueChange={setScheduleSpace} disabled={filteredSpaces.length === 0}>
                     <SelectTrigger className="text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
                     <SelectContent>
@@ -754,7 +754,7 @@ export default function ClasesPage() {
                   </Select>
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-xs">Espacio (opcional)</Label>
+                  <Label className="text-xs">Salón (opcional)</Label>
                   <Select value={scheduleSpace} onValueChange={setScheduleSpace} disabled={filteredSpaces.length === 0}>
                     <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                     <SelectContent>

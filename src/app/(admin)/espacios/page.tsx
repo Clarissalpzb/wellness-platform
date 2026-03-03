@@ -101,7 +101,7 @@ export default function EspaciosPage() {
   };
 
   const handleDeleteLocation = async (id: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta ubicación?")) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar esta sucursal?")) return;
     await fetch(`/api/locations/${id}`, { method: "DELETE" });
     fetchData();
   };
@@ -157,7 +157,7 @@ export default function EspaciosPage() {
   };
 
   const handleDeleteSpace = async (id: string) => {
-    if (!confirm("¿Estás seguro de que deseas eliminar esta sala?")) return;
+    if (!confirm("¿Estás seguro de que deseas eliminar este salón?")) return;
     await fetch(`/api/spaces/${id}`, { method: "DELETE" });
     fetchData();
   };
@@ -191,18 +191,18 @@ export default function EspaciosPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-neutral-900">Espacios</h1>
-          <p className="text-sm text-neutral-500">Gestiona tus ubicaciones y salas</p>
+          <h1 className="text-2xl font-bold text-neutral-900">Sucursales</h1>
+          <p className="text-sm text-neutral-500">Gestiona tus sucursales y salones</p>
         </div>
         <Button onClick={() => setShowCreateLocation(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Nueva Ubicación
+          Nueva Sucursal
         </Button>
       </div>
 
       {locations.length === 0 && !loading && (
         <div className="text-center py-12 text-neutral-500">
-          <p>No hay ubicaciones aún</p>
+          <p>No hay sucursales aún</p>
         </div>
       )}
 
@@ -246,7 +246,7 @@ export default function EspaciosPage() {
               </div>
             </CardHeader>
             <CardContent>
-              <h4 className="text-sm font-medium text-neutral-700 mb-3">Salas</h4>
+              <h4 className="text-sm font-medium text-neutral-700 mb-3">Salones</h4>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                 {location.spaces?.map((space: any) => (
                   <div
@@ -272,7 +272,7 @@ export default function EspaciosPage() {
                   className="flex items-center justify-center p-3 border border-dashed border-neutral-300 rounded-lg text-sm text-neutral-500 hover:border-primary-500 hover:text-primary-600 transition-colors"
                 >
                   <Plus className="h-4 w-4 mr-1" />
-                  Agregar Sala
+                  Agregar Salón
                 </button>
               </div>
             </CardContent>
@@ -284,9 +284,9 @@ export default function EspaciosPage() {
       <Dialog open={locationDialogOpen} onOpenChange={(open) => { if (!open) closeLocationDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{isEditingLocation ? "Editar Ubicación" : "Nueva Ubicación"}</DialogTitle>
+            <DialogTitle>{isEditingLocation ? "Editar Sucursal" : "Nueva Sucursal"}</DialogTitle>
             <DialogDescription>
-              {isEditingLocation ? "Modifica los datos de la ubicación" : "Agrega una nueva sucursal a tu centro"}
+              {isEditingLocation ? "Modifica los datos de la sucursal" : "Agrega una nueva sucursal a tu centro"}
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={isEditingLocation ? handleEditLocation : handleCreateLocation}>
@@ -309,7 +309,7 @@ export default function EspaciosPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeLocationDialog}>Cancelar</Button>
-              <Button type="submit">{isEditingLocation ? "Guardar Cambios" : "Crear Ubicación"}</Button>
+              <Button type="submit">{isEditingLocation ? "Guardar Cambios" : "Crear Sucursal"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -319,9 +319,9 @@ export default function EspaciosPage() {
       <Dialog open={spaceDialogOpen} onOpenChange={(open) => { if (!open) closeSpaceDialog(); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{isEditingSpace ? "Editar Sala" : "Nueva Sala"}</DialogTitle>
+            <DialogTitle>{isEditingSpace ? "Editar Salón" : "Nuevo Salón"}</DialogTitle>
             <DialogDescription>
-              {isEditingSpace ? "Modifica los datos de la sala" : "Agrega una nueva sala a esta ubicación"}
+              {isEditingSpace ? "Modifica los datos del salón" : "Agrega un nuevo salón a esta sucursal"}
             </DialogDescription>
           </DialogHeader>
           <form className="space-y-4" onSubmit={isEditingSpace ? handleEditSpace : handleCreateSpace}>
@@ -332,7 +332,7 @@ export default function EspaciosPage() {
             )}
             <div className="space-y-2">
               <Label htmlFor="space-name">Nombre</Label>
-              <Input id="space-name" name="name" placeholder="Ej: Sala Principal" defaultValue={editSpace?.name || ""} required />
+              <Input id="space-name" name="name" placeholder="Ej: Salón Barre" defaultValue={editSpace?.name || ""} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="space-capacity">Capacidad</Label>
@@ -344,7 +344,7 @@ export default function EspaciosPage() {
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeSpaceDialog}>Cancelar</Button>
-              <Button type="submit">{isEditingSpace ? "Guardar Cambios" : "Agregar Sala"}</Button>
+              <Button type="submit">{isEditingSpace ? "Guardar Cambios" : "Agregar Salón"}</Button>
             </DialogFooter>
           </form>
         </DialogContent>

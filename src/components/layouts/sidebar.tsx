@@ -36,7 +36,7 @@ const ownerNav = [
       { name: "Clases", href: "/clases", icon: Calendar },
       { name: "Paquetes", href: "/paquetes", icon: Package },
       { name: "Equipo", href: "/equipo", icon: UserCog },
-      { name: "Espacios", href: "/espacios", icon: Building2 },
+      { name: "Sucursales", href: "/espacios", icon: Building2 },
       { name: "Usuarios", href: "/usuarios", icon: Users },
       { name: "CRM", href: "/crm", icon: Megaphone },
       { name: "Punto de Venta", href: "/pos", icon: ShoppingBag },
