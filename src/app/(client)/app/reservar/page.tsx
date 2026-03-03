@@ -686,10 +686,12 @@ export default function ReservarPage() {
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-3 mt-1 text-sm text-neutral-500">
-                        <span className="flex items-center gap-1">
-                          <User className="h-3 w-3" />
-                          {cls.coach}
-                        </span>
+                        {cls.coach && (
+                          <span className="flex items-center gap-1">
+                            <User className="h-3 w-3" />
+                            {cls.coach}
+                          </span>
+                        )}
                         <span className="flex items-center gap-1">
                           <Clock className="h-3 w-3" />
                           {durationMinutes(cls.time, cls.endTime)} min
@@ -861,10 +863,12 @@ export default function ReservarPage() {
                                       <Clock className="h-3 w-3" />
                                       {durationMinutes(cls.time, cls.endTime)} min
                                     </span>
-                                    <span className="flex items-center gap-1">
-                                      <User className="h-3 w-3" />
-                                      {cls.coach}
-                                    </span>
+                                    {cls.coach && (
+                                      <span className="flex items-center gap-1">
+                                        <User className="h-3 w-3" />
+                                        {cls.coach}
+                                      </span>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="text-right shrink-0">
@@ -1054,19 +1058,21 @@ export default function ReservarPage() {
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-3 py-4 border-t border-b border-neutral-100">
-                    <div
-                      className="h-12 w-12 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                      style={{ backgroundColor: studioColor }}
-                    >
-                      {getCoachInitials(cls.coach)}
+                  {cls.coach && (
+                    <div className="flex items-center gap-3 py-4 border-t border-b border-neutral-100">
+                      <div
+                        className="h-12 w-12 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                        style={{ backgroundColor: studioColor }}
+                      >
+                        {getCoachInitials(cls.coach)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-neutral-900">{cls.coach}</p>
+                        <p className="text-sm text-neutral-500">Instructor</p>
+                      </div>
+                      <ChevronRight className="h-5 w-5 text-neutral-400 shrink-0" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-neutral-900">{cls.coach}</p>
-                      <p className="text-sm text-neutral-500">Instructor</p>
-                    </div>
-                    <ChevronRight className="h-5 w-5 text-neutral-400 shrink-0" />
-                  </div>
+                  )}
 
                   <div ref={spotSelectorRef}>
                     <h2 className="text-lg font-semibold text-neutral-900">Selecciona tu lugar</h2>
