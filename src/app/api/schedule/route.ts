@@ -1,7 +1,8 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { unauthorized, badRequest, success } from "@/lib/api-helpers";
+import { scheduleSchema } from "@/lib/validations";
+import { unauthorized, badRequest, notFound, success } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -102,4 +103,25 @@ export async function GET(req: NextRequest) {
   }));
 
   return success(result);
+}
+
+export async function POST(req: NextRequest) {
+  const session = await auth();
+  if (!session?.user) return unauthorized();
+  const orgId = (session.user as any).organizationId;
+
+  const body = await req.json();
+  const parsed = scheduleSchema.safeParse(body);
+  if (!parsed.success) return badRequest(parsed.error.issues[0].message);
+
+  const cls = await db.class.findFirst({
+    where: { id: parsed.data.classId, organizationId: orgId },
+  });
+  if (!cls) return notFound("Clase no encontrada");
+
+  const schedule = await db.classSchedule.create({
+    data: parsed.data,
+  });
+
+  return success(schedule, 201);
 }

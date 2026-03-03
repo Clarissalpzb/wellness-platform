@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, Calendar } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, Calendar, Clock, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,16 @@ export default function ClasesPage() {
   const [formCategory, setFormCategory] = useState("");
   const [formLevel, setFormLevel] = useState("");
 
+  // Schedule management state
+  const [scheduleClass, setScheduleClass] = useState<any>(null);
+  const [locations, setLocations] = useState<any[]>([]);
+  const [scheduleDay, setScheduleDay] = useState("");
+  const [scheduleStart, setScheduleStart] = useState("");
+  const [scheduleEnd, setScheduleEnd] = useState("");
+  const [scheduleLocation, setScheduleLocation] = useState("");
+  const [scheduleSpace, setScheduleSpace] = useState("");
+  const [scheduleError, setScheduleError] = useState<string | null>(null);
+
   const fetchData = async () => {
     try {
       const res = await fetch("/api/classes");
@@ -56,6 +66,10 @@ export default function ClasesPage() {
 
   useEffect(() => {
     fetchData();
+    fetch("/api/locations")
+      .then((r) => (r.ok ? r.json() : []))
+      .then(setLocations)
+      .catch(() => setLocations([]));
   }, []);
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -139,6 +153,73 @@ export default function ClasesPage() {
     setFormError(null);
   };
 
+  const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+  const resetScheduleForm = () => {
+    setScheduleDay("");
+    setScheduleStart("");
+    setScheduleEnd("");
+    setScheduleLocation("");
+    setScheduleSpace("");
+    setScheduleError(null);
+  };
+
+  const openScheduleDialog = (cls: any) => {
+    resetScheduleForm();
+    setScheduleClass(cls);
+  };
+
+  const closeScheduleDialog = () => {
+    setScheduleClass(null);
+    resetScheduleForm();
+  };
+
+  const handleAddSchedule = async () => {
+    setScheduleError(null);
+    if (!scheduleClass) return;
+
+    const body = {
+      classId: scheduleClass.id,
+      dayOfWeek: Number(scheduleDay),
+      startTime: scheduleStart,
+      endTime: scheduleEnd,
+      locationId: scheduleLocation,
+      spaceId: scheduleSpace || undefined,
+      isRecurring: true,
+    };
+
+    const res = await fetch("/api/schedule", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+    if (res.ok) {
+      resetScheduleForm();
+      await fetchData();
+      // Update the scheduleClass with fresh data
+      const updated = (await fetch("/api/classes").then((r) => r.json())) as any[];
+      const fresh = updated.find((c: any) => c.id === scheduleClass.id);
+      if (fresh) setScheduleClass(fresh);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      setScheduleError(err.error || "Error al agregar horario");
+    }
+  };
+
+  const handleDeleteSchedule = async (scheduleId: string) => {
+    const res = await fetch(`/api/schedule/${scheduleId}`, { method: "DELETE" });
+    if (res.ok) {
+      await fetchData();
+      const updated = (await fetch("/api/classes").then((r) => r.json())) as any[];
+      const fresh = updated.find((c: any) => c.id === scheduleClass?.id);
+      if (fresh) setScheduleClass(fresh);
+    }
+  };
+
+  const selectedLocation = locations.find((l: any) => l.id === scheduleLocation);
+  const filteredSpaces = selectedLocation?.spaces ?? [];
+
   const filtered = classes.filter((c) =>
     c.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -215,7 +296,7 @@ export default function ClasesPage() {
                     <DropdownMenuItem onClick={() => openEdit(cls)}>
                       <Pencil className="mr-2 h-4 w-4" /> Editar
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => openScheduleDialog(cls)}>
                       <Calendar className="mr-2 h-4 w-4" /> Horarios
                     </DropdownMenuItem>
                     <DropdownMenuItem className="text-accent-rose" onClick={() => handleDelete(cls.id)}>
@@ -320,6 +401,129 @@ export default function ClasesPage() {
               <Button type="submit">{isEditing ? "Guardar Cambios" : "Crear Clase"}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Schedule management dialog */}
+      <Dialog open={scheduleClass !== null} onOpenChange={(open) => { if (!open) closeScheduleDialog(); }}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Horarios — {scheduleClass?.name}</DialogTitle>
+            <DialogDescription>
+              Gestiona los horarios recurrentes de esta clase
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            {/* Existing schedules */}
+            {scheduleClass?.schedules?.length > 0 ? (
+              <div className="space-y-2">
+                {scheduleClass.schedules.map((s: any) => (
+                  <div
+                    key={s.id}
+                    className="flex items-center justify-between rounded-lg border p-3 text-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <Clock className="h-4 w-4 text-neutral-400" />
+                      <span className="font-medium">{DAY_NAMES[s.dayOfWeek]}</span>
+                      <span className="text-neutral-500">
+                        {s.startTime} – {s.endTime}
+                      </span>
+                      {s.location && (
+                        <Badge variant="outline">{s.location.name}</Badge>
+                      )}
+                      {s.space && (
+                        <span className="text-xs text-neutral-400">{s.space.name}</span>
+                      )}
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-neutral-400 hover:text-red-500"
+                      onClick={() => handleDeleteSchedule(s.id)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-neutral-400 text-center py-3">
+                No hay horarios configurados
+              </p>
+            )}
+
+            {/* Add schedule form */}
+            <div className="border-t pt-4 space-y-3">
+              <h4 className="text-sm font-medium">Agregar Horario</h4>
+              {scheduleError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
+                  {scheduleError}
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Día</Label>
+                  <Select value={scheduleDay} onValueChange={setScheduleDay}>
+                    <SelectTrigger><SelectValue placeholder="Día" /></SelectTrigger>
+                    <SelectContent>
+                      {DAY_NAMES.map((name, i) => (
+                        <SelectItem key={i} value={String(i)}>{name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Inicio</Label>
+                  <Input
+                    type="time"
+                    value={scheduleStart}
+                    onChange={(e) => setScheduleStart(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Fin</Label>
+                  <Input
+                    type="time"
+                    value={scheduleEnd}
+                    onChange={(e) => setScheduleEnd(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Ubicación</Label>
+                  <Select value={scheduleLocation} onValueChange={(v) => { setScheduleLocation(v); setScheduleSpace(""); }}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      {locations.map((loc: any) => (
+                        <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Espacio (opcional)</Label>
+                  <Select value={scheduleSpace} onValueChange={setScheduleSpace} disabled={filteredSpaces.length === 0}>
+                    <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      {filteredSpaces.map((sp: any) => (
+                        <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                onClick={handleAddSchedule}
+                disabled={!scheduleDay || !scheduleStart || !scheduleEnd || !scheduleLocation}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Agregar Horario
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

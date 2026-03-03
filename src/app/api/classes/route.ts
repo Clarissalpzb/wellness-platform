@@ -11,7 +11,14 @@ export async function GET() {
 
   const classes = await db.class.findMany({
     where: { organizationId: orgId },
-    include: { schedules: true },
+    include: {
+      schedules: {
+        include: {
+          location: { select: { name: true } },
+          space: { select: { name: true } },
+        },
+      },
+    },
     orderBy: { createdAt: "desc" },
   });
   return success(classes);
