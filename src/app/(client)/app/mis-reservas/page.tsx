@@ -33,20 +33,37 @@ interface Booking {
 // Helpers
 // ---------------------------------------------------------------------------
 const statusLabels: Record<string, string> = {
-  confirmed: "Confirmada",
-  waitlist: "En espera",
-  completed: "Completada",
-  cancelled: "Cancelada",
-  no_show: "No asistió",
+  CONFIRMED: "Confirmada",
+  CHECKED_IN: "Check-in",
+  COMPLETED: "Completada",
+  CANCELLED: "Cancelada",
+  NO_SHOW: "No asistió",
 };
 
 const statusVariant: Record<string, "success" | "warning" | "secondary" | "destructive"> = {
-  confirmed: "success",
-  waitlist: "warning",
-  completed: "secondary",
-  cancelled: "destructive",
-  no_show: "destructive",
+  CONFIRMED: "success",
+  CHECKED_IN: "success",
+  COMPLETED: "secondary",
+  CANCELLED: "destructive",
+  NO_SHOW: "destructive",
 };
+
+const fullDayNames = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"];
+const fullMonthNames = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+
+function formatBookingDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr;
+  return `${fullDayNames[d.getUTCDay()]} ${d.getUTCDate()} de ${fullMonthNames[d.getUTCMonth()]}`;
+}
+
+function formatTime12h(time24: string): string {
+  if (!time24) return "";
+  const [h, m] = time24.split(":").map(Number);
+  const period = h >= 12 ? "pm" : "am";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${m.toString().padStart(2, "0")} ${period}`;
+}
 
 /**
  * Try to map an API booking response into the display format.
@@ -107,7 +124,7 @@ export default function MisReservasPage() {
       if (pastData && Array.isArray(pastData)) {
         // If both endpoints returned the same data, separate by status
         const all = pastData.map(mapBooking);
-        const upcomingStatuses = new Set(["confirmed", "waitlist"]);
+        const upcomingStatuses = new Set(["CONFIRMED", "CHECKED_IN"]);
         const pastOnly = all.filter((b) => !upcomingStatuses.has(b.status));
         // Only use separated past if we got separate upcoming already
         if (upData && Array.isArray(upData)) {
@@ -193,23 +210,27 @@ export default function MisReservasPage() {
                         <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-neutral-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {booking.date}
+                            {formatBookingDate(booking.date)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {booking.time}
+                            {formatTime12h(booking.time)}
                           </span>
-                          <span className="flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {booking.location}
-                          </span>
+                          {booking.location && (
+                            <span className="flex items-center gap-1">
+                              <MapPin className="h-3 w-3" />
+                              {booking.location}
+                            </span>
+                          )}
                         </div>
-                        <p className="text-sm text-neutral-500 mt-1">Coach: {booking.coach}</p>
+                        {booking.coach && (
+                          <p className="text-sm text-neutral-500 mt-1">Coach: {booking.coach}</p>
+                        )}
                       </div>
                       <Button
                         variant="outline"
                         size="sm"
-                        className="text-accent-rose border-accent-rose/30 hover:bg-accent-rose-light"
+                        className="text-accent-rose border-accent-rose/30 hover:bg-accent-rose-light shrink-0"
                         onClick={() => {
                           setCancelTarget(booking);
                           setCancelError("");
@@ -248,11 +269,11 @@ export default function MisReservasPage() {
                         <div className="flex flex-wrap items-center gap-3 mt-1.5 text-sm text-neutral-500">
                           <span className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
-                            {booking.date}
+                            {formatBookingDate(booking.date)}
                           </span>
                           <span className="flex items-center gap-1">
                             <Clock className="h-3 w-3" />
-                            {booking.time}
+                            {formatTime12h(booking.time)}
                           </span>
                         </div>
                       </div>
@@ -277,8 +298,8 @@ export default function MisReservasPage() {
             </DialogHeader>
             <div className="space-y-2 text-sm">
               <p><span className="font-medium">Clase:</span> {cancelTarget.className}</p>
-              <p><span className="font-medium">Fecha:</span> {cancelTarget.date}</p>
-              <p><span className="font-medium">Horario:</span> {cancelTarget.time}</p>
+              <p><span className="font-medium">Fecha:</span> {formatBookingDate(cancelTarget.date)}</p>
+              <p><span className="font-medium">Horario:</span> {formatTime12h(cancelTarget.time)}</p>
             </div>
             {cancelError && (
               <div className="flex items-center gap-2 bg-red-50 text-red-800 text-sm p-3 rounded-lg">
