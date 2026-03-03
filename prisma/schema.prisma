@@ -194,6 +194,7 @@ model Class {
   waitlistMax    Int     @default(5)
   category       String?
   level          String? // beginner, intermediate, advanced
+  imageUrl       String?
   isActive       Boolean @default(true)
   cancellationPolicy Json @default("{}")
   createdAt      DateTime @default(now())

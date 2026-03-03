@@ -23,6 +23,7 @@ export const classSchema = z.object({
   waitlistMax: z.coerce.number().min(0).default(5),
   category: z.string().optional(),
   level: z.string().optional(),
+  imageUrl: z.string().optional(),
 });
 
 export const packageSchema = z.object({

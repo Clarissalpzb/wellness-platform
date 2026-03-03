@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, Calendar, Clock, X } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, Calendar, Clock, X, ImagePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,6 +37,12 @@ export default function ClasesPage() {
   const [formCategory, setFormCategory] = useState("");
   const [formLevel, setFormLevel] = useState("");
 
+  // Banner image state
+  const [formImage, setFormImage] = useState<string | null>(null);
+
+  // Coach/instructor state
+  const [coaches, setCoaches] = useState<any[]>([]);
+
   // Schedule management state
   const [scheduleClass, setScheduleClass] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
@@ -44,6 +50,7 @@ export default function ClasesPage() {
   const [scheduleStart, setScheduleStart] = useState("");
   const [scheduleLocation, setScheduleLocation] = useState("");
   const [scheduleSpace, setScheduleSpace] = useState("");
+  const [scheduleCoach, setScheduleCoach] = useState("");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
 
   const fetchData = async () => {
@@ -69,6 +76,10 @@ export default function ClasesPage() {
       .then((r) => (r.ok ? r.json() : []))
       .then(setLocations)
       .catch(() => setLocations([]));
+    fetch("/api/staff")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((staff: any[]) => setCoaches(staff.filter((s: any) => s.coachProfile)))
+      .catch(() => setCoaches([]));
   }, []);
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -76,7 +87,7 @@ export default function ClasesPage() {
     setFormError(null);
     const formData = new FormData(e.currentTarget);
     const duration = Number(formData.get("duration"));
-    const body = {
+    const body: any = {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       duration,
@@ -86,6 +97,7 @@ export default function ClasesPage() {
       color: formData.get("color") as string || "#3b82f6",
       waitlistMax: Number(formData.get("waitlistMax")) || 0,
     };
+    if (formImage) body.imageUrl = formImage;
     const res = await fetch("/api/classes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -113,6 +125,7 @@ export default function ClasesPage() {
             endTime,
             locationId: scheduleLocation,
             spaceId: scheduleSpace || undefined,
+            coachProfileId: scheduleCoach || undefined,
             isRecurring: true,
           }),
         });
@@ -128,7 +141,7 @@ export default function ClasesPage() {
     if (!editItem) return;
     setFormError(null);
     const formData = new FormData(e.currentTarget);
-    const body = {
+    const body: any = {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
       duration: Number(formData.get("duration")),
@@ -138,6 +151,8 @@ export default function ClasesPage() {
       color: formData.get("color") as string || editItem.color,
       waitlistMax: Number(formData.get("waitlistMax")) || 0,
     };
+    if (formImage) body.imageUrl = formImage;
+    else if (formImage === null && editItem.imageUrl) body.imageUrl = editItem.imageUrl;
     const res = await fetch(`/api/classes/${editItem.id}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -163,6 +178,7 @@ export default function ClasesPage() {
   const openEdit = (cls: any) => {
     setFormCategory(cls.category || "");
     setFormLevel(cls.level || "");
+    setFormImage(cls.imageUrl || null);
     resetScheduleForm();
     setEditItem(cls);
   };
@@ -172,6 +188,7 @@ export default function ClasesPage() {
     setEditItem(null);
     setFormCategory("");
     setFormLevel("");
+    setFormImage(null);
     setFormError(null);
     resetScheduleForm();
   };
@@ -183,6 +200,7 @@ export default function ClasesPage() {
     setScheduleStart("");
     setScheduleLocation("");
     setScheduleSpace("");
+    setScheduleCoach("");
     setScheduleError(null);
   };
 
@@ -227,6 +245,7 @@ export default function ClasesPage() {
           endTime,
           locationId: scheduleLocation,
           spaceId: scheduleSpace || undefined,
+          coachProfileId: scheduleCoach || undefined,
           isRecurring: true,
         }),
       });
@@ -315,12 +334,17 @@ export default function ClasesPage() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filtered.map((cls) => (
-          <Card key={cls.id} className="relative">
+          <Card key={cls.id} className="relative overflow-hidden">
+            {cls.imageUrl && (
+              <div className="h-32 w-full">
+                <img src={cls.imageUrl} alt={cls.name} className="h-full w-full object-cover" />
+              </div>
+            )}
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-3">
                   <div
-                    className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-sm"
+                    className="h-10 w-10 rounded-lg flex items-center justify-center text-white font-bold text-sm shrink-0"
                     style={{ backgroundColor: cls.color }}
                   >
                     {cls.name.charAt(0)}
@@ -438,6 +462,41 @@ export default function ClasesPage() {
                 <Input id="waitlistMax" name="waitlistMax" type="number" placeholder="0" defaultValue={editItem?.waitlistMax || ""} />
               </div>
             </div>
+            {/* Banner image */}
+            <div className="space-y-2">
+              <Label>Imagen de portada</Label>
+              {formImage && (
+                <div className="relative">
+                  <img src={formImage} alt="Preview" className="w-full h-32 object-cover rounded-lg" />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute top-1 right-1 h-6 w-6 bg-black/50 hover:bg-black/70 text-white"
+                    onClick={() => setFormImage(null)}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              )}
+              <label className="flex items-center gap-2 cursor-pointer text-sm text-neutral-600 hover:text-neutral-900 border border-dashed rounded-lg p-3 justify-center transition-colors">
+                <ImagePlus className="h-4 w-4" />
+                {formImage ? "Cambiar imagen" : "Subir imagen"}
+                <input
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onloadend = () => setFormImage(reader.result as string);
+                    reader.readAsDataURL(file);
+                  }}
+                />
+              </label>
+            </div>
+
             {/* Schedule section */}
             <div className="border-t pt-4 space-y-3">
               <h4 className="text-sm font-medium flex items-center gap-2">
@@ -457,6 +516,9 @@ export default function ClasesPage() {
                         <span className="font-medium">{DAY_NAMES[s.dayOfWeek]}</span>
                         <span className="text-neutral-500">{s.startTime} – {s.endTime}</span>
                         {s.location && <Badge variant="outline" className="text-xs">{s.location.name}</Badge>}
+                        {s.coachProfile?.user && (
+                          <span className="text-xs text-neutral-500">{s.coachProfile.user.firstName} {s.coachProfile.user.lastName}</span>
+                        )}
                       </div>
                       <Button
                         type="button"
@@ -497,7 +559,7 @@ export default function ClasesPage() {
                   ))}
                 </div>
               </div>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <Label className="text-xs">Hora inicio</Label>
                   <Input
@@ -524,6 +586,19 @@ export default function ClasesPage() {
                     <SelectContent>
                       {filteredSpaces.map((sp: any) => (
                         <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Instructor</Label>
+                  <Select value={scheduleCoach} onValueChange={setScheduleCoach}>
+                    <SelectTrigger className="text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      {coaches.map((c: any) => (
+                        <SelectItem key={c.coachProfile.id} value={c.coachProfile.id}>
+                          {c.firstName} {c.lastName}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -585,6 +660,9 @@ export default function ClasesPage() {
                       )}
                       {s.space && (
                         <span className="text-xs text-neutral-400">{s.space.name}</span>
+                      )}
+                      {s.coachProfile?.user && (
+                        <span className="text-xs text-neutral-500">{s.coachProfile.user.firstName} {s.coachProfile.user.lastName}</span>
                       )}
                     </div>
                     <Button
@@ -668,6 +746,19 @@ export default function ClasesPage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Instructor (opcional)</Label>
+                <Select value={scheduleCoach} onValueChange={setScheduleCoach}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                  <SelectContent>
+                    {coaches.map((c: any) => (
+                      <SelectItem key={c.coachProfile.id} value={c.coachProfile.id}>
+                        {c.firstName} {c.lastName}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <Button
                 className="w-full"

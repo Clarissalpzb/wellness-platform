@@ -16,6 +16,9 @@ export async function GET() {
         include: {
           location: { select: { name: true } },
           space: { select: { name: true } },
+          coachProfile: {
+            include: { user: { select: { firstName: true, lastName: true } } },
+          },
         },
       },
     },
