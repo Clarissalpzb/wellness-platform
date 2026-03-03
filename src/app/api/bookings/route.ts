@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
       isCancelled: false,
     },
     include: {
-      class: { select: { maxCapacity: true, waitlistMax: true, name: true } },
+      class: { select: { maxCapacity: true, waitlistMax: true, name: true, organizationId: true } },
     },
   });
 
@@ -146,12 +146,14 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  // Find user's active package with remaining classes
+  // Find user's active package with remaining classes, scoped to this studio
+  const orgId = schedule.class.organizationId;
   const activePackages = await db.userPackage.findMany({
     where: {
       userId,
       isActive: true,
       expiresAt: { gt: new Date() },
+      package: { organizationId: orgId },
     },
     orderBy: { expiresAt: "asc" },
   });
@@ -159,6 +161,10 @@ export async function POST(req: NextRequest) {
   const activePackage = activePackages.find(
     (pkg) => pkg.classesTotal === null || pkg.classesUsed < pkg.classesTotal
   ) ?? null;
+
+  if (!activePackage) {
+    return badRequest("Necesitas un paquete activo con este estudio para reservar");
+  }
 
   // If class is full, add to waitlist
   if (currentEnrollment >= schedule.class.maxCapacity) {

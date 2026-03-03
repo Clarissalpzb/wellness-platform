@@ -17,7 +17,7 @@ export function RevenueChart({ data = [] }: { data?: RevenueData[] }) {
       </CardHeader>
       <CardContent>
         {data.length === 0 ? (
-          <div className="text-center py-12 text-neutral-500">
+          <div className="flex items-center justify-center text-neutral-500" style={{ minHeight: 300 }}>
             <p>No hay datos disponibles</p>
           </div>
         ) : (

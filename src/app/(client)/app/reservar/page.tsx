@@ -50,10 +50,12 @@ type TabName = "sesiones" | "paquetes" | "ubicacion";
 interface PackageItem {
   id: string;
   name: string;
+  description: string | null;
+  type: string;
   price: number;
-  sessions: number | "unlimited";
-  validDays: number;
-  validClasses: string[];
+  currency: string;
+  classLimit: number | null;
+  validityDays: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -212,6 +214,10 @@ export default function ReservarPage() {
   const [activeTab, setActiveTab] = useState<TabName>("sesiones");
   const [expandedPackage, setExpandedPackage] = useState<string | null>(null);
   const [purchasedId, setPurchasedId] = useState<string | null>(null);
+  const [studioPackages, setStudioPackages] = useState<PackageItem[]>([]);
+  const [packagesLoading, setPackagesLoading] = useState(false);
+  const [purchasingId, setPurchasingId] = useState<string | null>(null);
+  const [purchaseMessage, setPurchaseMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   // ── User bookings (to show "Reservada" badge) ──
   const [bookedScheduleIds, setBookedScheduleIds] = useState<Set<string>>(new Set());
@@ -406,9 +412,54 @@ export default function ReservarPage() {
     }
   };
 
-  function handleBuy(pkgId: string) {
-    setPurchasedId(pkgId);
-    setTimeout(() => setPurchasedId(null), 3000);
+  // ── Fetch studio packages ──
+  const fetchStudioPackages = useCallback(async (orgId: string) => {
+    setPackagesLoading(true);
+    setPurchaseMessage(null);
+    try {
+      const res = await fetch(`/api/packages/public?organizationId=${orgId}`);
+      if (res.ok) {
+        const data: PackageItem[] = await res.json();
+        setStudioPackages(data);
+      } else {
+        setStudioPackages([]);
+      }
+    } catch {
+      setStudioPackages([]);
+    } finally {
+      setPackagesLoading(false);
+    }
+  }, []);
+
+  // Fetch packages when Paquetes tab is selected
+  useEffect(() => {
+    if (activeTab === "paquetes" && viewingStudioId) {
+      fetchStudioPackages(viewingStudioId);
+    }
+  }, [activeTab, viewingStudioId, fetchStudioPackages]);
+
+  async function handleBuy(pkgId: string) {
+    setPurchasingId(pkgId);
+    setPurchaseMessage(null);
+    try {
+      const res = await fetch("/api/packages/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId: pkgId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Error al comprar" }));
+        throw new Error(err.error || "Error al comprar");
+      }
+      setPurchaseMessage({ type: "success", text: "Paquete adquirido exitosamente" });
+      setPurchasedId(pkgId);
+      setTimeout(() => setPurchasedId(null), 3000);
+      if (viewingStudioId) fetchStudioPackages(viewingStudioId);
+    } catch (e: unknown) {
+      setPurchaseMessage({ type: "error", text: e instanceof Error ? e.message : "Error al comprar" });
+    } finally {
+      setPurchasingId(null);
+    }
   }
 
   const detailClass = schedule.find((c) => c.id === selectedClassId);
@@ -841,8 +892,86 @@ export default function ReservarPage() {
 
               {/* ═══ PAQUETES ═══ */}
               {activeTab === "paquetes" && (
-                <div className="text-center py-16">
-                  <p className="text-neutral-500">Paquetes próximamente</p>
+                <div className="space-y-4">
+                  {purchaseMessage && (
+                    <div className={cn(
+                      "flex items-center gap-2 text-sm p-4 rounded-xl",
+                      purchaseMessage.type === "success" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+                    )}>
+                      {purchaseMessage.type === "success" ? (
+                        <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+                      ) : (
+                        <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                      )}
+                      <span>{purchaseMessage.text}</span>
+                    </div>
+                  )}
+                  {packagesLoading ? (
+                    <div className="flex items-center justify-center py-16">
+                      <Loader2 className="h-6 w-6 animate-spin text-neutral-400" />
+                      <span className="ml-2 text-sm text-neutral-500">Cargando paquetes...</span>
+                    </div>
+                  ) : studioPackages.length === 0 ? (
+                    <div className="text-center py-16">
+                      <AlertCircle className="h-10 w-10 mx-auto mb-3 text-neutral-300" />
+                      <p className="text-neutral-500">No hay paquetes disponibles en este estudio.</p>
+                    </div>
+                  ) : (
+                    studioPackages.map((pkg) => {
+                      const typeLabels: Record<string, string> = {
+                        CLASS_PACK: "Paquete de clases",
+                        UNLIMITED: "Ilimitado",
+                        DROP_IN: "Clase individual",
+                        MEMBERSHIP: "Membresía",
+                      };
+                      const { whole, cents } = formatPrice(pkg.price);
+                      return (
+                        <Card key={pkg.id} className="overflow-hidden">
+                          <CardContent className="py-5 space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div>
+                                <h4 className="font-semibold text-neutral-900">{pkg.name}</h4>
+                                <Badge variant="outline" className="mt-1 text-xs">
+                                  {typeLabels[pkg.type] ?? pkg.type}
+                                </Badge>
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-xl font-bold text-neutral-900">
+                                  ${whole}<span className="text-sm">.{cents}</span>
+                                </p>
+                                <p className="text-xs text-neutral-500">{pkg.currency}</p>
+                              </div>
+                            </div>
+                            {pkg.description && (
+                              <p className="text-sm text-neutral-600">{pkg.description}</p>
+                            )}
+                            <div className="flex flex-wrap gap-3 text-sm text-neutral-500">
+                              <span className="flex items-center gap-1">
+                                <Users className="h-3.5 w-3.5" />
+                                {pkg.classLimit === null ? "Clases ilimitadas" : `${pkg.classLimit} clase${pkg.classLimit > 1 ? "s" : ""}`}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3.5 w-3.5" />
+                                {pkg.validityDays} días de vigencia
+                              </span>
+                            </div>
+                            <Button
+                              onClick={() => handleBuy(pkg.id)}
+                              disabled={purchasingId === pkg.id || purchasedId === pkg.id}
+                              className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-neutral-800"
+                            >
+                              {purchasingId === pkg.id ? (
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                              ) : purchasedId === pkg.id ? (
+                                <CheckCircle2 className="h-4 w-4 mr-2" />
+                              ) : null}
+                              {purchasedId === pkg.id ? "Adquirido" : "Comprar"}
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      );
+                    })
+                  )}
                 </div>
               )}
 
