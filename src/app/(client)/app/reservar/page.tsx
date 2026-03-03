@@ -246,6 +246,9 @@ function ReservarContent() {
   // ── User bookings (to show "Reservada" badge) ──
   const [bookedScheduleIds, setBookedScheduleIds] = useState<Set<string>>(new Set());
 
+  // ── User active packages (org IDs) ──
+  const [userPackageOrgIds, setUserPackageOrgIds] = useState<Set<string>>(new Set());
+
   // ── Class detail overlay state ──
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedSpot, setSelectedSpot] = useState<number | null>(null);
@@ -337,6 +340,25 @@ function ReservarContent() {
       // silently fail
     }
   }, []);
+
+  // ── Fetch user active packages ──
+  const fetchUserPackages = useCallback(async () => {
+    try {
+      const res = await fetch("/api/profile");
+      if (!res.ok) return;
+      const data = await res.json();
+      const orgIds = new Set<string>(
+        (data.packages ?? []).map((p: any) => p.organizationId)
+      );
+      setUserPackageOrgIds(orgIds);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchUserPackages();
+  }, [fetchUserPackages]);
 
   // ── Fetch schedule for all studios ──
   const fetchSchedule = useCallback(async (dateStr: string) => {
@@ -520,6 +542,7 @@ function ReservarContent() {
         setPurchasedId(pkgId);
         setTimeout(() => setPurchasedId(null), 3000);
         if (viewingStudioId) fetchStudioPackages(viewingStudioId);
+        fetchUserPackages();
       } else if (data.url) {
         // Redirect to Stripe Checkout
         window.location.href = data.url;
@@ -1254,52 +1277,69 @@ function ReservarContent() {
                     </div>
                   )}
 
-                  <div ref={spotSelectorRef}>
-                    <h2 className="text-lg font-semibold text-neutral-900">Selecciona tu lugar</h2>
-                    {full ? (
-                      <div className="mt-4 bg-amber-50 text-amber-800 text-sm p-4 rounded-xl">
-                        Esta clase está llena. Puedes unirte a la lista de espera y te notificaremos si se libera un lugar.
-                      </div>
-                    ) : (
-                      <div className="mt-4 bg-neutral-50 rounded-2xl p-5">
-                        <div className="flex justify-center mb-4">
-                          <div
-                            className="h-10 w-10 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                            style={{ backgroundColor: studioColor }}
-                          >
-                            {getCoachInitials(cls.coach)}
+                  {userPackageOrgIds.has(cls.organizationId) ? (
+                    <>
+                      <div ref={spotSelectorRef}>
+                        <h2 className="text-lg font-semibold text-neutral-900">Selecciona tu lugar</h2>
+                        {full ? (
+                          <div className="mt-4 bg-amber-50 text-amber-800 text-sm p-4 rounded-xl">
+                            Esta clase está llena. Puedes unirte a la lista de espera y te notificaremos si se libera un lugar.
                           </div>
-                        </div>
-                        <div className="grid grid-cols-8 gap-2 justify-items-center">
-                          {Array.from({ length: cls.capacity }, (_, i) => {
-                            const spotNum = i + 1;
-                            const isTaken = takenSpots.has(spotNum);
-                            const isSelected = selectedSpot === spotNum;
-                            return (
-                              <button
-                                key={spotNum}
-                                disabled={isTaken}
-                                onClick={() => setSelectedSpot(isSelected ? null : spotNum)}
-                                className={cn(
-                                  "h-9 w-9 rounded-full text-sm font-medium transition-all flex items-center justify-center",
-                                  isTaken && "bg-neutral-100 text-neutral-300 cursor-not-allowed",
-                                  !isTaken && !isSelected && "bg-white border border-neutral-200 text-neutral-700 hover:border-neutral-400 hover:shadow-sm",
-                                  isSelected && "bg-neutral-900 text-white shadow-md"
-                                )}
+                        ) : (
+                          <div className="mt-4 bg-neutral-50 rounded-2xl p-5">
+                            <div className="flex justify-center mb-4">
+                              <div
+                                className="h-10 w-10 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                                style={{ backgroundColor: studioColor }}
                               >
-                                {spotNum}
-                              </button>
-                            );
-                          })}
-                        </div>
+                                {getCoachInitials(cls.coach)}
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-8 gap-2 justify-items-center">
+                              {Array.from({ length: cls.capacity }, (_, i) => {
+                                const spotNum = i + 1;
+                                const isTaken = takenSpots.has(spotNum);
+                                const isSelected = selectedSpot === spotNum;
+                                return (
+                                  <button
+                                    key={spotNum}
+                                    disabled={isTaken}
+                                    onClick={() => setSelectedSpot(isSelected ? null : spotNum)}
+                                    className={cn(
+                                      "h-9 w-9 rounded-full text-sm font-medium transition-all flex items-center justify-center",
+                                      isTaken && "bg-neutral-100 text-neutral-300 cursor-not-allowed",
+                                      !isTaken && !isSelected && "bg-white border border-neutral-200 text-neutral-700 hover:border-neutral-400 hover:shadow-sm",
+                                      isSelected && "bg-neutral-900 text-white shadow-md"
+                                    )}
+                                  >
+                                    {spotNum}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
-                    )}
-                  </div>
 
-                  {bookingStatus === "error" && (
-                    <div className="flex items-center gap-2 bg-red-50 text-red-800 text-sm p-4 rounded-xl">
-                      <AlertCircle className="h-5 w-5 flex-shrink-0" />
-                      <span>{bookingMessage}</span>
+                      {bookingStatus === "error" && (
+                        <div className="flex items-center gap-2 bg-red-50 text-red-800 text-sm p-4 rounded-xl">
+                          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                          <span>{bookingMessage}</span>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="mt-4 bg-amber-50 text-amber-800 text-sm p-5 rounded-xl space-y-3">
+                      <p className="font-medium">Necesitas un paquete activo para reservar en este estudio.</p>
+                      <Button
+                        onClick={() => {
+                          backToList();
+                          setActiveTab("paquetes");
+                        }}
+                        className="w-full h-10 rounded-xl bg-amber-700 hover:bg-amber-800 text-white"
+                      >
+                        Ver paquetes disponibles
+                      </Button>
                     </div>
                   )}
                 </div>
@@ -1307,7 +1347,17 @@ function ReservarContent() {
             </div>
 
             <div className="absolute bottom-0 inset-x-0 bg-white border-t border-neutral-200 px-5 pt-3 pb-6">
-              {bookingStatus === "success" ? (
+              {!userPackageOrgIds.has(cls.organizationId) ? (
+                <Button
+                  onClick={() => {
+                    backToList();
+                    setActiveTab("paquetes");
+                  }}
+                  className="w-full h-12 text-base rounded-xl bg-amber-700 hover:bg-amber-800"
+                >
+                  Ver paquetes disponibles
+                </Button>
+              ) : bookingStatus === "success" ? (
                 <>
                   <div className="flex items-center gap-2 mb-3 text-green-700">
                     <CheckCircle2 className="h-5 w-5" />

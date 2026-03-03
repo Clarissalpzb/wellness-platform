@@ -32,6 +32,7 @@ export async function GET() {
               type: true,
               classLimit: true,
               validityDays: true,
+              organizationId: true,
               organization: { select: { name: true } },
             },
           },
@@ -127,6 +128,7 @@ export async function GET() {
       expiresAt: up.expiresAt,
       classLimit: up.package.classLimit,
       studioName: up.package.organization.name,
+      organizationId: up.package.organizationId,
     })),
     totalBookings: user._count.bookings,
     stats: {
