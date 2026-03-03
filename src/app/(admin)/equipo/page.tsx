@@ -53,6 +53,7 @@ export default function EquipoPage() {
   const [search, setSearch] = useState("");
 
   const [formError, setFormError] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
 
   // Form state for select
   const [formRole, setFormRole] = useState("");
@@ -80,6 +81,8 @@ export default function EquipoPage() {
 
   const handleCreate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    if (saving) return;
+    setSaving(true);
     setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
@@ -88,24 +91,29 @@ export default function EquipoPage() {
       role: formRole,
       phone: formData.get("phone") as string || undefined,
     };
-    const res = await fetch("/api/staff", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      setShowCreate(false);
-      setFormRole("");
-      fetchData();
-    } else {
-      const err = await res.json().catch(() => ({}));
-      setFormError(err.error || "Error al guardar");
+    try {
+      const res = await fetch("/api/staff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setShowCreate(false);
+        setFormRole("");
+        fetchData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setFormError(err.error || "Error al guardar");
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleEdit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!editItem) return;
+    if (!editItem || saving) return;
+    setSaving(true);
     setFormError(null);
     const formData = new FormData(e.currentTarget);
     const body = {
@@ -114,18 +122,22 @@ export default function EquipoPage() {
       role: formRole || editItem.role,
       phone: formData.get("phone") as string || undefined,
     };
-    const res = await fetch(`/api/staff/${editItem.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-    if (res.ok) {
-      setEditItem(null);
-      setFormRole("");
-      fetchData();
-    } else {
-      const err = await res.json().catch(() => ({}));
-      setFormError(err.error || "Error al guardar");
+    try {
+      const res = await fetch(`/api/staff/${editItem.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (res.ok) {
+        setEditItem(null);
+        setFormRole("");
+        fetchData();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setFormError(err.error || "Error al guardar");
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -297,8 +309,10 @@ export default function EquipoPage() {
               <Input id="phone" name="phone" type="tel" placeholder="+52 55 1234 5678" defaultValue={editItem?.phone || ""} />
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={closeDialog}>Cancelar</Button>
-              <Button type="submit">{isEditing ? "Guardar Cambios" : "Agregar"}</Button>
+              <Button type="button" variant="outline" onClick={closeDialog} disabled={saving}>Cancelar</Button>
+              <Button type="submit" disabled={saving}>
+                {saving ? "Guardando..." : isEditing ? "Guardar Cambios" : "Agregar"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
