@@ -84,8 +84,7 @@ export default function EquipoPage() {
     const formData = new FormData(e.currentTarget);
     const body = {
       firstName: formData.get("firstName") as string,
-      lastName: formData.get("lastName") as string,
-      email: formData.get("email") as string,
+      email: (formData.get("email") as string) || undefined,
       role: formRole,
       phone: formData.get("phone") as string || undefined,
     };
@@ -111,8 +110,7 @@ export default function EquipoPage() {
     const formData = new FormData(e.currentTarget);
     const body = {
       firstName: formData.get("firstName") as string,
-      lastName: formData.get("lastName") as string,
-      email: formData.get("email") as string,
+      email: (formData.get("email") as string) || undefined,
       role: formRole || editItem.role,
       phone: formData.get("phone") as string || undefined,
     };
@@ -151,8 +149,8 @@ export default function EquipoPage() {
 
   const filtered = staff.filter(
     (s) =>
-      `${s.firstName} ${s.lastName}`.toLowerCase().includes(search.toLowerCase()) ||
-      s.email.toLowerCase().includes(search.toLowerCase())
+      `${s.firstName} ${s.lastName || ""}`.toLowerCase().includes(search.toLowerCase()) ||
+      (s.email || "").toLowerCase().includes(search.toLowerCase())
   );
 
   if (loading) {
@@ -275,19 +273,13 @@ export default function EquipoPage() {
                 {formError}
               </div>
             )}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="firstName">Nombre</Label>
-                <Input id="firstName" name="firstName" placeholder="Nombre" defaultValue={editItem?.firstName || ""} required />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lastName">Apellido</Label>
-                <Input id="lastName" name="lastName" placeholder="Apellido" defaultValue={editItem?.lastName || ""} required />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="firstName">Nombre</Label>
+              <Input id="firstName" name="firstName" placeholder="Nombre completo" defaultValue={editItem?.firstName || ""} required />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" name="email" type="email" placeholder="email@ejemplo.com" defaultValue={editItem?.email || ""} required />
+              <Label htmlFor="email">Email (opcional)</Label>
+              <Input id="email" name="email" type="email" placeholder="email@ejemplo.com" defaultValue={editItem?.email?.includes("@placeholder.local") ? "" : editItem?.email || ""} />
             </div>
             <div className="space-y-2">
               <Label>Rol</Label>

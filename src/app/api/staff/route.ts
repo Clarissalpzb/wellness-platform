@@ -30,8 +30,10 @@ export async function POST(req: NextRequest) {
   const parsed = staffSchema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
+  const email = parsed.data.email || `staff-${Date.now().toString(36)}@placeholder.local`;
+
   const existingUser = await db.user.findUnique({
-    where: { email: parsed.data.email },
+    where: { email },
   });
   if (existingUser) return badRequest("Ya existe un usuario con ese email");
 
@@ -40,12 +42,15 @@ export async function POST(req: NextRequest) {
   const newStaff = await db.user.create({
     data: {
       firstName: parsed.data.firstName,
-      lastName: parsed.data.lastName,
-      email: parsed.data.email,
+      lastName: parsed.data.lastName || "",
+      email,
       role: parsed.data.role,
       phone: parsed.data.phone,
       passwordHash,
       organizationId: orgId,
+      ...(parsed.data.role === "COACH"
+        ? { coachProfile: { create: {} } }
+        : {}),
     },
     include: { coachProfile: true },
   });

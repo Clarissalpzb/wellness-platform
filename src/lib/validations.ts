@@ -49,8 +49,8 @@ export const scheduleSchema = z.object({
 
 export const staffSchema = z.object({
   firstName: z.string().min(2, "Mínimo 2 caracteres"),
-  lastName: z.string().min(2, "Mínimo 2 caracteres"),
-  email: z.string().email("Email inválido"),
+  lastName: z.string().optional().default(""),
+  email: z.string().email("Email inválido").optional().or(z.literal("")),
   role: z.enum(["ADMIN", "FRONT_DESK", "COACH"]),
   phone: z.string().optional(),
 });

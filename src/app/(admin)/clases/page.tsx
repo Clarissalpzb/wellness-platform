@@ -36,6 +36,12 @@ export default function ClasesPage() {
   // Form state for selects (not captured by FormData)
   const [formCategory, setFormCategory] = useState("");
   const [formLevel, setFormLevel] = useState("");
+  const [formColor, setFormColor] = useState("#3b82f6");
+
+  const COLOR_PRESETS = [
+    "#3b82f6", "#22c55e", "#ef4444", "#f59e0b", "#8b5cf6",
+    "#ec4899", "#06b6d4", "#f97316", "#14b8a6", "#6366f1",
+  ];
 
   // Banner image state
   const [formImage, setFormImage] = useState<string | null>(null);
@@ -94,7 +100,7 @@ export default function ClasesPage() {
       maxCapacity: Number(formData.get("maxCapacity")),
       category: formCategory,
       level: formLevel,
-      color: formData.get("color") as string || "#3b82f6",
+      color: formColor,
       waitlistMax: Number(formData.get("waitlistMax")) || 0,
     };
     if (formImage) body.imageUrl = formImage;
@@ -148,7 +154,7 @@ export default function ClasesPage() {
       maxCapacity: Number(formData.get("maxCapacity")),
       category: formCategory || editItem.category,
       level: formLevel || editItem.level,
-      color: formData.get("color") as string || editItem.color,
+      color: formColor || editItem.color,
       waitlistMax: Number(formData.get("waitlistMax")) || 0,
     };
     if (formImage) body.imageUrl = formImage;
@@ -178,6 +184,7 @@ export default function ClasesPage() {
   const openEdit = (cls: any) => {
     setFormCategory(cls.category || "");
     setFormLevel(cls.level || "");
+    setFormColor(cls.color || "#3b82f6");
     setFormImage(cls.imageUrl || null);
     resetScheduleForm();
     setEditItem(cls);
@@ -188,6 +195,7 @@ export default function ClasesPage() {
     setEditItem(null);
     setFormCategory("");
     setFormLevel("");
+    setFormColor("#3b82f6");
     setFormImage(null);
     setFormError(null);
     resetScheduleForm();
@@ -452,15 +460,25 @@ export default function ClasesPage() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="color">Color</Label>
-                <Input id="color" name="color" type="color" defaultValue={editItem?.color || "#3b82f6"} />
+            <div className="space-y-2">
+              <Label>Color</Label>
+              <div className="flex flex-wrap gap-2">
+                {COLOR_PRESETS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setFormColor(c)}
+                    className={`h-8 w-8 rounded-full border-2 transition-all ${
+                      formColor === c ? "border-neutral-900 scale-110" : "border-transparent hover:scale-105"
+                    }`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="waitlistMax">Lista de espera</Label>
-                <Input id="waitlistMax" name="waitlistMax" type="number" placeholder="0" defaultValue={editItem?.waitlistMax || ""} />
-              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="waitlistMax">Lista de espera</Label>
+              <Input id="waitlistMax" name="waitlistMax" type="number" placeholder="0" defaultValue={editItem?.waitlistMax || ""} />
             </div>
             {/* Banner image */}
             <div className="space-y-2">
