@@ -3,11 +3,14 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const data: any[] = [];
+interface BookingSourceData {
+  name: string;
+  value: number;
+}
 
 const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#6b7280"];
 
-export function BookingsPieChart() {
+export function BookingsPieChart({ data = [] }: { data?: BookingSourceData[] }) {
   return (
     <Card>
       <CardHeader>
@@ -34,7 +37,7 @@ export function BookingsPieChart() {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(value) => [`${value}%`, ""]} />
+              <Tooltip formatter={(value) => [value, ""]} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>

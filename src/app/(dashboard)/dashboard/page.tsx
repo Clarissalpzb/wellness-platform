@@ -8,6 +8,13 @@ import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { InviteLinkCard } from "./invite-link-card";
 
+const MONTH_NAMES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+const SOURCE_LABELS: Record<string, string> = {
+  app: "App",
+  admin: "Admin",
+  fitpass: "Fitpass",
+};
+
 export default async function DashboardPage() {
   const session = await auth();
   const orgId = (session?.user as any)?.organizationId;
@@ -21,35 +28,56 @@ export default async function DashboardPage() {
     orgSlug = org?.slug ?? null;
   }
 
-  // ---- Queries ----
+  // ---- Date ranges ----
   const now = new Date();
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(startOfDay.getTime() + 24 * 60 * 60 * 1000);
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-  // Reservas Hoy – bookings for today scoped to org's classes
+  // Org class filter (reused across queries)
+  const orgClassFilter = { classSchedule: { class: { organizationId: orgId } } };
+
+  // ---- Reservas Hoy ----
   const bookingsToday = orgId
     ? await db.booking.count({
         where: {
           date: { gte: startOfDay, lt: endOfDay },
           status: { not: "CANCELLED" },
-          classSchedule: { class: { organizationId: orgId } },
+          ...orgClassFilter,
         },
       })
     : 0;
 
-  // Clientes Activos – users with CLIENT role belonging to this org
-  const activeClients = orgId
-    ? await db.user.count({
-        where: {
-          organizationId: orgId,
+  // ---- Clientes Activos ----
+  // Count clients directly in org + clients who have booked classes in this org
+  let activeClients = 0;
+  if (orgId) {
+    const directClients = await db.user.count({
+      where: { organizationId: orgId, role: "CLIENT", isActive: true },
+    });
+
+    // Clients who booked classes in this org but aren't directly assigned
+    const bookingClients = await db.booking.findMany({
+      where: {
+        status: { not: "CANCELLED" },
+        ...orgClassFilter,
+        user: {
+          OR: [
+            { organizationId: { not: orgId } },
+            { organizationId: null },
+          ],
           role: "CLIENT",
           isActive: true,
         },
-      })
-    : 0;
+      },
+      select: { userId: true },
+      distinct: ["userId"],
+    });
 
-  // Ingresos del Mes – sum of transactions this month
+    activeClients = directClients + bookingClients.length;
+  }
+
+  // ---- Ingresos del Mes ----
   let monthlyRevenue = 0;
   if (orgId) {
     const result = await db.transaction.aggregate({
@@ -62,7 +90,7 @@ export default async function DashboardPage() {
     monthlyRevenue = result._sum.amount ?? 0;
   }
 
-  // Tasa Retención – clients with >1 booking in the last 30 days / total active clients
+  // ---- Tasa Retención ----
   let retentionRate = 0;
   if (orgId && activeClients > 0) {
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -71,20 +99,85 @@ export default async function DashboardPage() {
       where: {
         date: { gte: thirtyDaysAgo },
         status: { not: "CANCELLED" },
-        classSchedule: { class: { organizationId: orgId } },
+        ...orgClassFilter,
       },
       having: { userId: { _count: { gt: 1 } } },
     });
     retentionRate = Math.round((returningClients.length / activeClients) * 100);
   }
 
-  // Nuevos Clientes – last 5 clients who joined this month
+  // ---- Revenue Chart (last 6 months) ----
+  const revenueData: { month: string; current: number; previous: number }[] = [];
+  if (orgId) {
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 1);
+      const prevYearStart = new Date(monthDate.getFullYear() - 1, monthDate.getMonth(), 1);
+      const prevYearEnd = new Date(monthDate.getFullYear() - 1, monthDate.getMonth() + 1, 1);
+
+      const [current, previous] = await Promise.all([
+        db.transaction.aggregate({
+          where: { organizationId: orgId, createdAt: { gte: monthDate, lt: monthEnd } },
+          _sum: { amount: true },
+        }),
+        db.transaction.aggregate({
+          where: { organizationId: orgId, createdAt: { gte: prevYearStart, lt: prevYearEnd } },
+          _sum: { amount: true },
+        }),
+      ]);
+
+      revenueData.push({
+        month: MONTH_NAMES[monthDate.getMonth()],
+        current: current._sum.amount ?? 0,
+        previous: previous._sum.amount ?? 0,
+      });
+    }
+  }
+
+  // ---- Reservas por Fuente (this month) ----
+  let bookingsBySource: { name: string; value: number }[] = [];
+  if (orgId) {
+    const sourceGroups = await db.booking.groupBy({
+      by: ["source"],
+      where: {
+        date: { gte: startOfMonth },
+        status: { not: "CANCELLED" },
+        ...orgClassFilter,
+      },
+      _count: true,
+    });
+    bookingsBySource = sourceGroups.map((g) => ({
+      name: SOURCE_LABELS[g.source] || g.source,
+      value: g._count,
+    }));
+  }
+
+  // ---- Reservas del Mes ----
+  const bookingsMonth = orgId
+    ? await db.booking.count({
+        where: {
+          date: { gte: startOfMonth },
+          status: { not: "CANCELLED" },
+          ...orgClassFilter,
+        },
+      })
+    : 0;
+
+  // ---- Nuevos Clientes ----
   const newCustomers = orgId
     ? await db.user.findMany({
         where: {
-          organizationId: orgId,
           role: "CLIENT",
+          isActive: true,
           createdAt: { gte: startOfMonth },
+          OR: [
+            { organizationId: orgId },
+            {
+              bookings: {
+                some: { ...orgClassFilter },
+              },
+            },
+          ],
         },
         orderBy: { createdAt: "desc" },
         take: 5,
@@ -92,16 +185,8 @@ export default async function DashboardPage() {
       })
     : [];
 
-  // Reservas del Mes – total this month for subtitle
-  const bookingsMonth = orgId
-    ? await db.booking.count({
-        where: {
-          date: { gte: startOfMonth },
-          status: { not: "CANCELLED" },
-          classSchedule: { class: { organizationId: orgId } },
-        },
-      })
-    : 0;
+  // Only show revenue chart if there's data
+  const hasRevenueData = revenueData.some((d) => d.current > 0 || d.previous > 0);
 
   return (
     <div className="space-y-6">
@@ -143,9 +228,9 @@ export default async function DashboardPage() {
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <RevenueChart />
+          <RevenueChart data={hasRevenueData ? revenueData : []} />
         </div>
-        <BookingsPieChart />
+        <BookingsPieChart data={bookingsBySource} />
       </div>
 
       {/* Tables */}

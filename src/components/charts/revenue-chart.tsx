@@ -3,9 +3,13 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-const data: any[] = [];
+interface RevenueData {
+  month: string;
+  current: number;
+  previous: number;
+}
 
-export function RevenueChart() {
+export function RevenueChart({ data = [] }: { data?: RevenueData[] }) {
   return (
     <Card>
       <CardHeader>
