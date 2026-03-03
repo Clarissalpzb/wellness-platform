@@ -43,6 +43,7 @@ export async function GET(req: NextRequest) {
 
   const result = bookings.map((b) => ({
     id: b.id,
+    classScheduleId: b.classScheduleId,
     date: b.date,
     status: b.status,
     checkedInAt: b.checkedInAt,

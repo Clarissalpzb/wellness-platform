@@ -213,6 +213,9 @@ export default function ReservarPage() {
   const [expandedPackage, setExpandedPackage] = useState<string | null>(null);
   const [purchasedId, setPurchasedId] = useState<string | null>(null);
 
+  // ── User bookings (to show "Reservada" badge) ──
+  const [bookedScheduleIds, setBookedScheduleIds] = useState<Set<string>>(new Set());
+
   // ── Class detail overlay state ──
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedSpot, setSelectedSpot] = useState<number | null>(null);
@@ -286,6 +289,25 @@ export default function ReservarPage() {
     loadStudios();
   }, []);
 
+  // ── Fetch user bookings for selected date ──
+  const fetchBookings = useCallback(async (dateStr: string) => {
+    try {
+      const res = await fetch(`/api/bookings?upcoming=true`);
+      if (!res.ok) return;
+      const data: any[] = await res.json();
+      const ids = new Set<string>();
+      for (const b of data) {
+        const bDate = new Date(b.date).toISOString().slice(0, 10);
+        if (bDate === dateStr && b.status !== "CANCELLED") {
+          ids.add(b.classScheduleId);
+        }
+      }
+      setBookedScheduleIds(ids);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
   // ── Fetch schedule for all studios ──
   const fetchSchedule = useCallback(async (dateStr: string) => {
     if (studios.length === 0) return;
@@ -309,7 +331,8 @@ export default function ReservarPage() {
 
   useEffect(() => {
     if (selectedDateIso && studios.length > 0) fetchSchedule(selectedDateIso);
-  }, [selectedDateIso, fetchSchedule, studios]);
+    if (selectedDateIso) fetchBookings(selectedDateIso);
+  }, [selectedDateIso, fetchSchedule, fetchBookings, studios]);
 
   // ── Navigation handlers ──
   function openStudioProfile(studioId: string) {
@@ -376,6 +399,7 @@ export default function ReservarPage() {
       setBookingStatus("success");
       setBookingMessage("Reserva confirmada exitosamente.");
       fetchSchedule(selectedDateIso);
+      fetchBookings(selectedDateIso);
     } catch (e: unknown) {
       setBookingStatus("error");
       setBookingMessage(e instanceof Error ? e.message : "Error al reservar. Intenta de nuevo.");
@@ -580,12 +604,19 @@ export default function ReservarPage() {
             const spotsLeft = cls.capacity - cls.enrolled;
             const studioColor = getStudioColorById(cls.organizationId);
             const studioName = getStudioName(cls.organizationId);
+            const isBooked = bookedScheduleIds.has(cls.id);
             return (
               <Card
                 key={cls.id}
-                className={cn("cursor-pointer transition-shadow hover:shadow-md", full && "opacity-75")}
+                className={cn("cursor-pointer transition-shadow hover:shadow-md overflow-hidden", full && !isBooked && "opacity-75")}
                 onClick={() => openClassFromBrowse(cls)}
               >
+                {isBooked && (
+                  <div className="flex items-center gap-1.5 bg-primary-50 px-4 py-1.5 border-b border-primary-100">
+                    <CheckCircle2 className="h-3.5 w-3.5 text-primary-600" />
+                    <span className="text-xs font-medium text-primary-700">Reservada</span>
+                  </div>
+                )}
                 <CardContent className="py-4">
                   <div className="flex items-center gap-4">
                     <div className="text-center min-w-[50px]">
@@ -619,7 +650,9 @@ export default function ReservarPage() {
                       </div>
                     </div>
                     <div className="text-right">
-                      {full ? (
+                      {isBooked ? (
+                        <Badge variant="secondary" className="text-primary-600 bg-primary-50">Reservada</Badge>
+                      ) : full ? (
                         <Badge variant="secondary" className="text-amber-600 bg-amber-50">Lleno</Badge>
                       ) : (
                         <div>
@@ -751,12 +784,19 @@ export default function ReservarPage() {
                       {profileClasses.map((cls) => {
                         const full = cls.enrolled >= cls.capacity;
                         const spotsLeft = cls.capacity - cls.enrolled;
+                        const isBooked = bookedScheduleIds.has(cls.id);
                         return (
                           <Card
                             key={cls.id}
-                            className={cn("cursor-pointer transition-shadow hover:shadow-md", full && "opacity-75")}
+                            className={cn("cursor-pointer transition-shadow hover:shadow-md overflow-hidden", full && !isBooked && "opacity-75")}
                             onClick={() => openClassDetail(cls.id)}
                           >
+                            {isBooked && (
+                              <div className="flex items-center gap-1.5 bg-primary-50 px-4 py-1.5 border-b border-primary-100">
+                                <CheckCircle2 className="h-3.5 w-3.5 text-primary-600" />
+                                <span className="text-xs font-medium text-primary-700">Reservada</span>
+                              </div>
+                            )}
                             <CardContent className="py-4">
                               <div className="flex items-center gap-4">
                                 <div className="text-center min-w-[50px]">
@@ -777,7 +817,9 @@ export default function ReservarPage() {
                                   </div>
                                 </div>
                                 <div className="text-right shrink-0">
-                                  {full ? (
+                                  {isBooked ? (
+                                    <span className="text-xs text-primary-600 font-medium">Reservada</span>
+                                  ) : full ? (
                                     <span className="text-xs text-amber-600 font-medium">Lleno</span>
                                   ) : (
                                     <div className="flex items-center gap-1 text-xs text-neutral-400">
