@@ -115,7 +115,7 @@ export default function EspaciosPage() {
     const body = {
       name: formData.get("name") as string,
       capacity: Number(formData.get("capacity")),
-      amenities: formData.get("amenities") as string || "",
+      amenities: (formData.get("amenities") as string)?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
       locationId: showCreateSpace,
     };
     const res = await fetch("/api/spaces", {
@@ -140,7 +140,7 @@ export default function EspaciosPage() {
     const body = {
       name: formData.get("name") as string,
       capacity: Number(formData.get("capacity")),
-      amenities: formData.get("amenities") as string || "",
+      amenities: (formData.get("amenities") as string)?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
     };
     const res = await fetch(`/api/spaces/${editSpace.id}`, {
       method: "PUT",
@@ -340,7 +340,7 @@ export default function EspaciosPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="space-amenities">Amenidades</Label>
-              <Input id="space-amenities" name="amenities" placeholder="Ej: Espejos, Barras, Sonido" defaultValue={editSpace?.amenities || ""} />
+              <Input id="space-amenities" name="amenities" placeholder="Ej: Espejos, Barras, Sonido" defaultValue={Array.isArray(editSpace?.amenities) ? editSpace.amenities.join(", ") : editSpace?.amenities || ""} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeSpaceDialog}>Cancelar</Button>

@@ -65,7 +65,7 @@ export default function SalonesPage() {
     const body = {
       name: formData.get("name") as string,
       capacity: Number(formData.get("capacity")) || 0,
-      amenities: (formData.get("amenities") as string) || "",
+      amenities: (formData.get("amenities") as string)?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
       locationId: formLocation,
     };
     if (!body.locationId) {
@@ -100,7 +100,7 @@ export default function SalonesPage() {
     const body = {
       name: formData.get("name") as string,
       capacity: Number(formData.get("capacity")) || 0,
-      amenities: (formData.get("amenities") as string) || "",
+      amenities: (formData.get("amenities") as string)?.split(",").map((s) => s.trim()).filter(Boolean) ?? [],
     };
     try {
       const res = await fetch(`/api/spaces/${editSpace.id}`, {
@@ -211,8 +211,8 @@ export default function SalonesPage() {
                     Capacidad: {space.capacity}
                   </span>
                 )}
-                {space.amenities && (
-                  <Badge variant="outline" className="text-xs">{space.amenities}</Badge>
+                {space.amenities?.length > 0 && (
+                  <Badge variant="outline" className="text-xs">{Array.isArray(space.amenities) ? space.amenities.join(", ") : space.amenities}</Badge>
                 )}
               </div>
             </div>
@@ -257,7 +257,7 @@ export default function SalonesPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="space-amenities">Amenidades</Label>
-              <Input id="space-amenities" name="amenities" placeholder="Ej: Espejos, Barras, Sonido" defaultValue={editSpace?.amenities || ""} />
+              <Input id="space-amenities" name="amenities" placeholder="Ej: Espejos, Barras, Sonido" defaultValue={Array.isArray(editSpace?.amenities) ? editSpace.amenities.join(", ") : editSpace?.amenities || ""} />
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog} disabled={saving}>Cancelar</Button>
