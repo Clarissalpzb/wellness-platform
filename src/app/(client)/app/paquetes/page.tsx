@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, AlertCircle, Package, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +25,14 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function MisPaquetesPage() {
+  return (
+    <Suspense>
+      <MisPaquetesContent />
+    </Suspense>
+  );
+}
+
+function MisPaquetesContent() {
   const searchParams = useSearchParams();
   const purchaseSuccess = searchParams.get("purchase") === "success";
   const [showSuccessBanner, setShowSuccessBanner] = useState(purchaseSuccess);

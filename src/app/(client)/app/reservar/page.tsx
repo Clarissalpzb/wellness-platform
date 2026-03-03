@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import {
   ChevronLeft, ChevronRight, ChevronDown, Clock, User, Users, MapPin,
@@ -178,6 +178,14 @@ function sessionLabel(sessions: number | "unlimited") {
 // Component
 // ---------------------------------------------------------------------------
 export default function ReservarPage() {
+  return (
+    <Suspense>
+      <ReservarContent />
+    </Suspense>
+  );
+}
+
+function ReservarContent() {
   const dates = buildDates();
   const spotSelectorRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
