@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { signIn } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,6 +37,15 @@ export default function RegisterPage() {
         const body = await res.json();
         setError(body.error || "Error al registrar");
       } else {
+        const signInRes = await signIn("credentials", {
+          email: data.email,
+          password: data.password,
+          redirect: false,
+        });
+        if (signInRes?.error) {
+          setError("Cuenta creada pero hubo un error al iniciar sesión. Por favor inicia sesión manualmente.");
+          return;
+        }
         window.location.href = "/dashboard";
       }
     } catch {
