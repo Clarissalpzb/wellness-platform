@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useSearchParams } from "next/navigation";
 import {
   ChevronLeft, ChevronRight, ChevronDown, Clock, User, Users, MapPin,
   Loader2, CheckCircle2, AlertCircle, Search, X, CalendarDays,
@@ -181,6 +182,8 @@ export default function ReservarPage() {
   const spotSelectorRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const profileScrollRef = useRef<HTMLDivElement>(null);
+  const searchParams = useSearchParams();
+  const purchaseCancelled = searchParams.get("purchase") === "cancelled";
 
   const todayIso = new Date().toISOString().slice(0, 10);
   const todayIndex = dates.findIndex((d) => d.iso === todayIso);
@@ -218,6 +221,19 @@ export default function ReservarPage() {
   const [packagesLoading, setPackagesLoading] = useState(false);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [purchaseMessage, setPurchaseMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // ── Coupon state ──
+  const [couponInputs, setCouponInputs] = useState<Record<string, string>>({});
+  const [couponLoading, setCouponLoading] = useState<Record<string, boolean>>({});
+  const [couponResults, setCouponResults] = useState<Record<string, {
+    valid: boolean;
+    discountType: string;
+    discountValue: number;
+    originalPrice: number;
+    finalPrice: number;
+    code: string;
+  } | null>>({});
+  const [couponErrors, setCouponErrors] = useState<Record<string, string>>({});
 
   // ── User bookings (to show "Reservada" badge) ──
   const [bookedScheduleIds, setBookedScheduleIds] = useState<Set<string>>(new Set());
@@ -438,23 +454,68 @@ export default function ReservarPage() {
     }
   }, [activeTab, viewingStudioId, fetchStudioPackages]);
 
+  async function handleValidateCoupon(pkgId: string) {
+    const code = couponInputs[pkgId]?.trim();
+    if (!code) return;
+
+    setCouponLoading((p) => ({ ...p, [pkgId]: true }));
+    setCouponErrors((p) => ({ ...p, [pkgId]: "" }));
+    setCouponResults((p) => ({ ...p, [pkgId]: null }));
+
+    try {
+      const res = await fetch("/api/coupons/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, packageId: pkgId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setCouponErrors((p) => ({ ...p, [pkgId]: data.error || "Cupón no válido" }));
+      } else {
+        setCouponResults((p) => ({ ...p, [pkgId]: { ...data, code } }));
+      }
+    } catch {
+      setCouponErrors((p) => ({ ...p, [pkgId]: "Error al validar cupón" }));
+    } finally {
+      setCouponLoading((p) => ({ ...p, [pkgId]: false }));
+    }
+  }
+
+  function handleRemoveCoupon(pkgId: string) {
+    setCouponResults((p) => ({ ...p, [pkgId]: null }));
+    setCouponInputs((p) => ({ ...p, [pkgId]: "" }));
+    setCouponErrors((p) => ({ ...p, [pkgId]: "" }));
+  }
+
   async function handleBuy(pkgId: string) {
     setPurchasingId(pkgId);
     setPurchaseMessage(null);
     try {
+      const couponResult = couponResults[pkgId];
       const res = await fetch("/api/packages/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ packageId: pkgId }),
+        body: JSON.stringify({
+          packageId: pkgId,
+          ...(couponResult?.valid && { couponCode: couponResult.code }),
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Error al comprar" }));
         throw new Error(err.error || "Error al comprar");
       }
-      setPurchaseMessage({ type: "success", text: "Paquete adquirido exitosamente" });
-      setPurchasedId(pkgId);
-      setTimeout(() => setPurchasedId(null), 3000);
-      if (viewingStudioId) fetchStudioPackages(viewingStudioId);
+      const data = await res.json();
+
+      if (data.free) {
+        // 100% discount — package created directly
+        setPurchaseMessage({ type: "success", text: "Paquete adquirido exitosamente" });
+        setPurchasedId(pkgId);
+        setTimeout(() => setPurchasedId(null), 3000);
+        if (viewingStudioId) fetchStudioPackages(viewingStudioId);
+      } else if (data.url) {
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      }
     } catch (e: unknown) {
       setPurchaseMessage({ type: "error", text: e instanceof Error ? e.message : "Error al comprar" });
     } finally {
@@ -478,6 +539,13 @@ export default function ReservarPage() {
   // ═══════════════════════════════════════════════════════════════════════
   return (
     <div className="space-y-6">
+      {purchaseCancelled && (
+        <div className="flex items-center gap-2 text-sm p-4 rounded-xl bg-amber-50 text-amber-800">
+          <AlertCircle className="h-5 w-5 flex-shrink-0" />
+          <span>El pago fue cancelado. Puedes intentar de nuevo cuando quieras.</span>
+        </div>
+      )}
+
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* BROWSE VIEW (default)                                             */}
       {/* ══════════════════════════════════════════════════════════════════ */}
@@ -929,6 +997,14 @@ export default function ReservarPage() {
                         MEMBERSHIP: "Membresía",
                       };
                       const { whole, cents } = formatPrice(pkg.price);
+                      const isExpanded = expandedPackage === pkg.id;
+                      const couponResult = couponResults[pkg.id];
+                      const couponError = couponErrors[pkg.id];
+                      const isCouponLoading = couponLoading[pkg.id];
+                      const finalPrice = couponResult?.valid ? couponResult.finalPrice : pkg.price;
+                      const isFree = couponResult?.valid && couponResult.finalPrice === 0;
+                      const { whole: finalWhole, cents: finalCents } = formatPrice(finalPrice);
+
                       return (
                         <Card key={pkg.id} className="overflow-hidden">
                           <CardContent className="py-5 space-y-3">
@@ -940,9 +1016,20 @@ export default function ReservarPage() {
                                 </Badge>
                               </div>
                               <div className="text-right shrink-0">
-                                <p className="text-xl font-bold text-neutral-900">
-                                  ${whole}<span className="text-sm">.{cents}</span>
-                                </p>
+                                {couponResult?.valid ? (
+                                  <>
+                                    <p className="text-sm text-neutral-400 line-through">
+                                      ${whole}.{cents}
+                                    </p>
+                                    <p className="text-xl font-bold text-green-700">
+                                      {isFree ? "Gratis" : `$${finalWhole}.${finalCents}`}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-xl font-bold text-neutral-900">
+                                    ${whole}<span className="text-sm">.{cents}</span>
+                                  </p>
+                                )}
                                 <p className="text-xs text-neutral-500">{pkg.currency}</p>
                               </div>
                             </div>
@@ -959,18 +1046,103 @@ export default function ReservarPage() {
                                 {pkg.validityDays} días de vigencia
                               </span>
                             </div>
-                            <Button
-                              onClick={() => handleBuy(pkg.id)}
-                              disabled={purchasingId === pkg.id || purchasedId === pkg.id}
-                              className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-neutral-800"
-                            >
-                              {purchasingId === pkg.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                              ) : purchasedId === pkg.id ? (
-                                <CheckCircle2 className="h-4 w-4 mr-2" />
-                              ) : null}
-                              {purchasedId === pkg.id ? "Adquirido" : "Comprar"}
-                            </Button>
+
+                            {!isExpanded ? (
+                              <Button
+                                onClick={() => {
+                                  setExpandedPackage(pkg.id);
+                                  setPurchaseMessage(null);
+                                }}
+                                disabled={purchasedId === pkg.id}
+                                className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-neutral-800"
+                              >
+                                {purchasedId === pkg.id ? (
+                                  <>
+                                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                                    Adquirido
+                                  </>
+                                ) : (
+                                  "Comprar"
+                                )}
+                              </Button>
+                            ) : (
+                              <div className="space-y-3 pt-2 border-t border-neutral-100">
+                                {/* Coupon input */}
+                                <div>
+                                  <label className="text-sm font-medium text-neutral-700 mb-1.5 block">
+                                    Código de descuento (opcional)
+                                  </label>
+                                  {couponResult?.valid ? (
+                                    <div className="flex items-center gap-2 bg-green-50 text-green-800 text-sm p-3 rounded-xl">
+                                      <CheckCircle2 className="h-4 w-4 flex-shrink-0" />
+                                      <span className="flex-1">
+                                        Cupón <strong>{couponResult.code}</strong> aplicado
+                                        {couponResult.discountType === "PERCENTAGE"
+                                          ? ` (${couponResult.discountValue}% de descuento)`
+                                          : ` ($${couponResult.discountValue} de descuento)`}
+                                      </span>
+                                      <button
+                                        onClick={() => handleRemoveCoupon(pkg.id)}
+                                        className="text-green-600 hover:text-green-800"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-2">
+                                      <Input
+                                        placeholder="Ingresa tu código"
+                                        value={couponInputs[pkg.id] ?? ""}
+                                        onChange={(e) =>
+                                          setCouponInputs((p) => ({ ...p, [pkg.id]: e.target.value.toUpperCase() }))
+                                        }
+                                        onKeyDown={(e) => {
+                                          if (e.key === "Enter") handleValidateCoupon(pkg.id);
+                                        }}
+                                        className="flex-1"
+                                      />
+                                      <Button
+                                        variant="outline"
+                                        onClick={() => handleValidateCoupon(pkg.id)}
+                                        disabled={isCouponLoading || !couponInputs[pkg.id]?.trim()}
+                                        className="shrink-0"
+                                      >
+                                        {isCouponLoading ? (
+                                          <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                          "Aplicar"
+                                        )}
+                                      </Button>
+                                    </div>
+                                  )}
+                                  {couponError && (
+                                    <p className="text-xs text-red-600 mt-1">{couponError}</p>
+                                  )}
+                                </div>
+
+                                {/* Purchase button */}
+                                <Button
+                                  onClick={() => handleBuy(pkg.id)}
+                                  disabled={purchasingId === pkg.id}
+                                  className="w-full h-10 rounded-xl bg-neutral-900 hover:bg-neutral-800"
+                                >
+                                  {purchasingId === pkg.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  ) : null}
+                                  {isFree ? "Obtener gratis" : "Pagar con Stripe"}
+                                </Button>
+
+                                <button
+                                  onClick={() => {
+                                    setExpandedPackage(null);
+                                    handleRemoveCoupon(pkg.id);
+                                  }}
+                                  className="w-full text-sm text-neutral-500 hover:text-neutral-700 text-center"
+                                >
+                                  Cancelar
+                                </button>
+                              </div>
+                            )}
                           </CardContent>
                         </Card>
                       );

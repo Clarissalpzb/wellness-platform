@@ -55,18 +55,34 @@ export async function POST(req: Request) {
               },
             });
 
+            const amountPaid = session.amount_total
+              ? session.amount_total / 100
+              : pkg.price;
+
+            const couponCode = session.metadata?.couponCode;
+
             await db.transaction.create({
               data: {
                 userId,
                 organizationId: pkg.organizationId,
                 type: "PACKAGE_PURCHASE",
-                amount: pkg.price,
+                amount: amountPaid,
                 currency: pkg.currency,
                 paymentMethod: "STRIPE",
                 stripePaymentId: session.payment_intent as string,
-                description: `Compra: ${pkg.name}`,
+                description: couponCode
+                  ? `Compra: ${pkg.name} (cupón: ${couponCode})`
+                  : `Compra: ${pkg.name}`,
               },
             });
+
+            // Increment coupon usage if one was applied
+            if (couponCode) {
+              await db.coupon.update({
+                where: { code: couponCode },
+                data: { usedCount: { increment: 1 } },
+              });
+            }
           }
         }
         break;

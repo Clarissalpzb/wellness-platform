@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
+import { stripe } from "@/lib/stripe";
 import { unauthorized, badRequest, notFound, success } from "@/lib/api-helpers";
 
 export async function POST(req: NextRequest) {
@@ -15,7 +16,7 @@ export async function POST(req: NextRequest) {
     return badRequest("Cuerpo de solicitud inválido");
   }
 
-  const { packageId } = body;
+  const { packageId, couponCode } = body;
   if (!packageId) {
     return badRequest("packageId es requerido");
   }
@@ -29,26 +30,110 @@ export async function POST(req: NextRequest) {
     return notFound("Paquete no encontrado o no está activo");
   }
 
-  const expiresAt = new Date();
-  expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
+  let finalPrice = pkg.price;
+  let validatedCouponCode: string | null = null;
 
-  const userPackage = await db.userPackage.create({
-    data: {
-      userId,
-      packageId: pkg.id,
-      classesTotal: pkg.classLimit,
-      expiresAt,
-    },
-  });
+  // Validate coupon if provided
+  if (couponCode) {
+    const code = couponCode.toUpperCase().trim();
+    const coupon = await db.coupon.findUnique({
+      where: { code },
+    });
 
-  return success(
-    {
+    if (!coupon || !coupon.isActive) {
+      return badRequest("Código de cupón no válido");
+    }
+
+    if (coupon.expiresAt && coupon.expiresAt < new Date()) {
+      return badRequest("Este cupón ha expirado");
+    }
+
+    if (coupon.maxUses !== null && coupon.usedCount >= coupon.maxUses) {
+      return badRequest("Este cupón ha alcanzado su límite de usos");
+    }
+
+    if (coupon.organizationId !== pkg.organizationId) {
+      return badRequest("Este cupón no es válido para este paquete");
+    }
+
+    if (coupon.discountType === "PERCENTAGE") {
+      finalPrice = Math.max(0, pkg.price * (1 - coupon.discountValue / 100));
+    } else {
+      finalPrice = Math.max(0, pkg.price - coupon.discountValue);
+    }
+
+    finalPrice = Math.round(finalPrice * 100) / 100;
+    validatedCouponCode = code;
+  }
+
+  // If price is 0 (100% discount), create directly without Stripe
+  if (finalPrice === 0) {
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
+
+    const userPackage = await db.userPackage.create({
+      data: {
+        userId,
+        packageId: pkg.id,
+        classesTotal: pkg.classLimit,
+        expiresAt,
+      },
+    });
+
+    await db.transaction.create({
+      data: {
+        userId,
+        organizationId: pkg.organizationId,
+        type: "PACKAGE_PURCHASE",
+        amount: 0,
+        currency: pkg.currency,
+        paymentMethod: "COMPLIMENTARY",
+        description: `Compra: ${pkg.name} (cupón: ${validatedCouponCode})`,
+      },
+    });
+
+    // Increment coupon usage
+    if (validatedCouponCode) {
+      await db.coupon.update({
+        where: { code: validatedCouponCode },
+        data: { usedCount: { increment: 1 } },
+      });
+    }
+
+    return success({
+      free: true,
       id: userPackage.id,
       packageName: pkg.name,
       studioName: pkg.organization.name,
-      classesTotal: userPackage.classesTotal,
-      expiresAt: userPackage.expiresAt,
+    });
+  }
+
+  // Create Stripe Checkout Session
+  const unitAmount = Math.round(finalPrice * 100); // Convert to centavos
+
+  const checkoutSession = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        price_data: {
+          currency: pkg.currency.toLowerCase(),
+          product_data: {
+            name: pkg.name,
+            description: `${pkg.organization.name} — ${pkg.classLimit ? `${pkg.classLimit} clases` : "Clases ilimitadas"}, ${pkg.validityDays} días`,
+          },
+          unit_amount: unitAmount,
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      userId,
+      packageId: pkg.id,
+      ...(validatedCouponCode && { couponCode: validatedCouponCode }),
     },
-    201
-  );
+    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/paquetes?purchase=success`,
+    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/reservar?purchase=cancelled`,
+  });
+
+  return success({ url: checkoutSession.url });
 }

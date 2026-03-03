@@ -26,6 +26,7 @@ model Organization {
   campaigns  Campaign[]
   insights   Insight[]
   auditLogs  AuditLog[]
+  coupons    Coupon[]
 }
 
 model Location {
@@ -506,6 +507,33 @@ model Friendship {
   userB User @relation("FriendB", fields: [userBId], references: [id])
 
   @@unique([userAId, userBId])
+}
+
+// ─── Coupons ──────────────────────────────────────────────
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+model Coupon {
+  id             String       @id @default(cuid())
+  code           String       @unique
+  organizationId String
+  discountType   DiscountType
+  discountValue  Float
+  maxUses        Int?
+  usedCount      Int          @default(0)
+  expiresAt      DateTime?
+  isActive       Boolean      @default(true)
+  metadata       Json         @default("{}")
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
+  @@index([code])
 }
 
 // ─── Audit ─────────────────────────────────────────────────

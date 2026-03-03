@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { Loader2, AlertCircle, Package } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { Loader2, AlertCircle, Package, CheckCircle2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -24,6 +25,10 @@ const TYPE_LABELS: Record<string, string> = {
 };
 
 export default function MisPaquetesPage() {
+  const searchParams = useSearchParams();
+  const purchaseSuccess = searchParams.get("purchase") === "success";
+  const [showSuccessBanner, setShowSuccessBanner] = useState(purchaseSuccess);
+
   const [packages, setPackages] = useState<UserPackageItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -78,6 +83,21 @@ export default function MisPaquetesPage() {
         <h1 className="text-2xl font-bold text-neutral-900">Mis Paquetes</h1>
         <p className="text-sm text-neutral-500">Tus paquetes activos</p>
       </div>
+
+      {showSuccessBanner && (
+        <div className="flex items-center justify-between gap-2 text-sm p-4 rounded-xl bg-green-50 text-green-800">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+            <span>Pago completado exitosamente. Tu paquete ya está activo.</span>
+          </div>
+          <button
+            onClick={() => setShowSuccessBanner(false)}
+            className="text-green-600 hover:text-green-800 text-xs font-medium shrink-0"
+          >
+            Cerrar
+          </button>
+        </div>
+      )}
 
       {packages.length === 0 ? (
         <div className="text-center py-16">
