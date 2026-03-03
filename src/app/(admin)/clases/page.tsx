@@ -40,9 +40,8 @@ export default function ClasesPage() {
   // Schedule management state
   const [scheduleClass, setScheduleClass] = useState<any>(null);
   const [locations, setLocations] = useState<any[]>([]);
-  const [scheduleDay, setScheduleDay] = useState("");
+  const [scheduleDays, setScheduleDays] = useState<number[]>([]);
   const [scheduleStart, setScheduleStart] = useState("");
-  const [scheduleEnd, setScheduleEnd] = useState("");
   const [scheduleLocation, setScheduleLocation] = useState("");
   const [scheduleSpace, setScheduleSpace] = useState("");
   const [scheduleError, setScheduleError] = useState<string | null>(null);
@@ -76,10 +75,11 @@ export default function ClasesPage() {
     e.preventDefault();
     setFormError(null);
     const formData = new FormData(e.currentTarget);
+    const duration = Number(formData.get("duration"));
     const body = {
       name: formData.get("name") as string,
       description: formData.get("description") as string,
-      duration: Number(formData.get("duration")),
+      duration,
       maxCapacity: Number(formData.get("maxCapacity")),
       category: formCategory,
       level: formLevel,
@@ -91,15 +91,36 @@ export default function ClasesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (res.ok) {
-      setShowCreate(false);
-      setFormCategory("");
-      setFormLevel("");
-      fetchData();
-    } else {
+    if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       setFormError(err.error || "Error al guardar");
+      return;
     }
+
+    const newClass = await res.json();
+
+    // Create schedules if any days were selected
+    if (scheduleDays.length > 0 && scheduleStart && scheduleLocation) {
+      const endTime = computeEndTime(scheduleStart, duration);
+      for (const day of scheduleDays) {
+        await fetch("/api/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            classId: newClass.id,
+            dayOfWeek: day,
+            startTime: scheduleStart,
+            endTime,
+            locationId: scheduleLocation,
+            spaceId: scheduleSpace || undefined,
+            isRecurring: true,
+          }),
+        });
+      }
+    }
+
+    closeDialog();
+    fetchData();
   };
 
   const handleEdit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -142,6 +163,7 @@ export default function ClasesPage() {
   const openEdit = (cls: any) => {
     setFormCategory(cls.category || "");
     setFormLevel(cls.level || "");
+    resetScheduleForm();
     setEditItem(cls);
   };
 
@@ -151,17 +173,31 @@ export default function ClasesPage() {
     setFormCategory("");
     setFormLevel("");
     setFormError(null);
+    resetScheduleForm();
   };
 
   const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
   const resetScheduleForm = () => {
-    setScheduleDay("");
+    setScheduleDays([]);
     setScheduleStart("");
-    setScheduleEnd("");
     setScheduleLocation("");
     setScheduleSpace("");
     setScheduleError(null);
+  };
+
+  const toggleDay = (day: number) => {
+    setScheduleDays((prev) =>
+      prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]
+    );
+  };
+
+  const computeEndTime = (start: string, durationMin: number): string => {
+    const [h, m] = start.split(":").map(Number);
+    const total = h * 60 + m + durationMin;
+    const eh = Math.floor(total / 60) % 24;
+    const em = total % 60;
+    return `${String(eh).padStart(2, "0")}:${String(em).padStart(2, "0")}`;
   };
 
   const openScheduleDialog = (cls: any) => {
@@ -174,46 +210,54 @@ export default function ClasesPage() {
     resetScheduleForm();
   };
 
-  const handleAddSchedule = async () => {
+  const handleAddSchedule = async (targetClass: any) => {
     setScheduleError(null);
-    if (!scheduleClass) return;
+    if (!targetClass || scheduleDays.length === 0) return;
 
-    const body = {
-      classId: scheduleClass.id,
-      dayOfWeek: Number(scheduleDay),
-      startTime: scheduleStart,
-      endTime: scheduleEnd,
-      locationId: scheduleLocation,
-      spaceId: scheduleSpace || undefined,
-      isRecurring: true,
-    };
+    const endTime = computeEndTime(scheduleStart, targetClass.duration);
 
-    const res = await fetch("/api/schedule", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    for (const day of scheduleDays) {
+      const res = await fetch("/api/schedule", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          classId: targetClass.id,
+          dayOfWeek: day,
+          startTime: scheduleStart,
+          endTime,
+          locationId: scheduleLocation,
+          spaceId: scheduleSpace || undefined,
+          isRecurring: true,
+        }),
+      });
 
-    if (res.ok) {
-      resetScheduleForm();
-      await fetchData();
-      // Update the scheduleClass with fresh data
-      const updated = (await fetch("/api/classes").then((r) => r.json())) as any[];
-      const fresh = updated.find((c: any) => c.id === scheduleClass.id);
-      if (fresh) setScheduleClass(fresh);
-    } else {
-      const err = await res.json().catch(() => ({}));
-      setScheduleError(err.error || "Error al agregar horario");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setScheduleError(err.error || "Error al agregar horario");
+        return;
+      }
+    }
+
+    resetScheduleForm();
+    await fetchData();
+    const updated = (await fetch("/api/classes").then((r) => r.json())) as any[];
+    const fresh = updated.find((c: any) => c.id === targetClass.id);
+    if (fresh) {
+      if (scheduleClass) setScheduleClass(fresh);
+      if (editItem) setEditItem(fresh);
     }
   };
 
-  const handleDeleteSchedule = async (scheduleId: string) => {
+  const handleDeleteSchedule = async (scheduleId: string, targetClass: any) => {
     const res = await fetch(`/api/schedule/${scheduleId}`, { method: "DELETE" });
     if (res.ok) {
       await fetchData();
       const updated = (await fetch("/api/classes").then((r) => r.json())) as any[];
-      const fresh = updated.find((c: any) => c.id === scheduleClass?.id);
-      if (fresh) setScheduleClass(fresh);
+      const fresh = updated.find((c: any) => c.id === targetClass?.id);
+      if (fresh) {
+        if (scheduleClass) setScheduleClass(fresh);
+        if (editItem) setEditItem(fresh);
+      }
     }
   };
 
@@ -326,7 +370,7 @@ export default function ClasesPage() {
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{isEditing ? "Editar Clase" : "Nueva Clase"}</DialogTitle>
             <DialogDescription>
@@ -394,6 +438,113 @@ export default function ClasesPage() {
                 <Input id="waitlistMax" name="waitlistMax" type="number" placeholder="0" defaultValue={editItem?.waitlistMax || ""} />
               </div>
             </div>
+            {/* Schedule section */}
+            <div className="border-t pt-4 space-y-3">
+              <h4 className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="h-4 w-4" /> Horarios
+              </h4>
+
+              {/* Existing schedules (edit mode) */}
+              {isEditing && editItem?.schedules?.length > 0 && (
+                <div className="space-y-2">
+                  {editItem.schedules.map((s: any) => (
+                    <div
+                      key={s.id}
+                      className="flex items-center justify-between rounded-lg border p-2.5 text-sm"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-3.5 w-3.5 text-neutral-400" />
+                        <span className="font-medium">{DAY_NAMES[s.dayOfWeek]}</span>
+                        <span className="text-neutral-500">{s.startTime} – {s.endTime}</span>
+                        {s.location && <Badge variant="outline" className="text-xs">{s.location.name}</Badge>}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-neutral-400 hover:text-red-500"
+                        onClick={() => handleDeleteSchedule(s.id, editItem)}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {scheduleError && (
+                <div className="rounded-lg bg-red-50 border border-red-200 p-2 text-xs text-red-700">
+                  {scheduleError}
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <Label className="text-xs">Días</Label>
+                <div className="flex flex-wrap gap-1.5">
+                  {DAY_NAMES.map((name, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => toggleDay(i)}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                        scheduleDays.includes(i)
+                          ? "bg-primary-600 text-white border-primary-600"
+                          : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400"
+                      }`}
+                    >
+                      {name.slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Hora inicio</Label>
+                  <Input
+                    type="time"
+                    value={scheduleStart}
+                    onChange={(e) => setScheduleStart(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Ubicación</Label>
+                  <Select value={scheduleLocation} onValueChange={(v) => { setScheduleLocation(v); setScheduleSpace(""); }}>
+                    <SelectTrigger className="text-xs"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                    <SelectContent>
+                      {locations.map((loc: any) => (
+                        <SelectItem key={loc.id} value={loc.id}>{loc.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Espacio</Label>
+                  <Select value={scheduleSpace} onValueChange={setScheduleSpace} disabled={filteredSpaces.length === 0}>
+                    <SelectTrigger className="text-xs"><SelectValue placeholder="Opcional" /></SelectTrigger>
+                    <SelectContent>
+                      {filteredSpaces.map((sp: any) => (
+                        <SelectItem key={sp.id} value={sp.id}>{sp.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {isEditing && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-full"
+                  onClick={() => handleAddSchedule(editItem)}
+                  disabled={scheduleDays.length === 0 || !scheduleStart || !scheduleLocation}
+                >
+                  <Plus className="mr-2 h-3.5 w-3.5" />
+                  Agregar Horario
+                </Button>
+              )}
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>
                 Cancelar
@@ -440,7 +591,7 @@ export default function ClasesPage() {
                       variant="ghost"
                       size="icon"
                       className="h-7 w-7 text-neutral-400 hover:text-red-500"
-                      onClick={() => handleDeleteSchedule(s.id)}
+                      onClick={() => handleDeleteSchedule(s.id, scheduleClass)}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -461,34 +612,38 @@ export default function ClasesPage() {
                   {scheduleError}
                 </div>
               )}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Día</Label>
-                  <Select value={scheduleDay} onValueChange={setScheduleDay}>
-                    <SelectTrigger><SelectValue placeholder="Día" /></SelectTrigger>
-                    <SelectContent>
-                      {DAY_NAMES.map((name, i) => (
-                        <SelectItem key={i} value={String(i)}>{name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+              <div className="space-y-1">
+                <Label className="text-xs">Días</Label>
+                <div className="flex flex-wrap gap-2">
+                  {DAY_NAMES.map((name, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => toggleDay(i)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                        scheduleDays.includes(i)
+                          ? "bg-primary-600 text-white border-primary-600"
+                          : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-400"
+                      }`}
+                    >
+                      {name.slice(0, 3)}
+                    </button>
+                  ))}
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Inicio</Label>
-                  <Input
-                    type="time"
-                    value={scheduleStart}
-                    onChange={(e) => setScheduleStart(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Fin</Label>
-                  <Input
-                    type="time"
-                    value={scheduleEnd}
-                    onChange={(e) => setScheduleEnd(e.target.value)}
-                  />
-                </div>
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Hora de inicio</Label>
+                <Input
+                  type="time"
+                  value={scheduleStart}
+                  onChange={(e) => setScheduleStart(e.target.value)}
+                  className="w-40"
+                />
+                {scheduleStart && scheduleClass?.duration && (
+                  <p className="text-xs text-neutral-400">
+                    Fin: {computeEndTime(scheduleStart, scheduleClass.duration)} ({scheduleClass.duration} min)
+                  </p>
+                )}
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -516,8 +671,8 @@ export default function ClasesPage() {
               </div>
               <Button
                 className="w-full"
-                onClick={handleAddSchedule}
-                disabled={!scheduleDay || !scheduleStart || !scheduleEnd || !scheduleLocation}
+                onClick={() => handleAddSchedule(scheduleClass)}
+                disabled={scheduleDays.length === 0 || !scheduleStart || !scheduleLocation}
               >
                 <Plus className="mr-2 h-4 w-4" />
                 Agregar Horario
