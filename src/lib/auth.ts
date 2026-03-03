@@ -54,10 +54,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-        token.name = user.name;
+        // authorize() sets name, but PrismaAdapter may return firstName/lastName instead
+        const u = user as any;
+        token.name = user.name || (u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : null);
         token.email = user.email;
-        token.role = (user as any).role;
-        token.organizationId = (user as any).organizationId ?? null;
+        token.role = u.role;
+        token.organizationId = u.organizationId ?? null;
       }
       return token;
     },
