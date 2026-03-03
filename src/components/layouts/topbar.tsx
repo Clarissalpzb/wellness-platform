@@ -82,6 +82,9 @@ export function Topbar() {
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
+              <Link href="/app/mis-reservas">Mis Reservas</Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
               <Link href="/settings">Mi Perfil</Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>
