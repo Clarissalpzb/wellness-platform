@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { DollarSign, Calendar, TrendingUp, Download, Users, Copy, Check, Share2, Gift, UserPlus, Award, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -40,6 +40,18 @@ const classBreakdown: any[] = [];
 const coachCompensation: any[] = [];
 
 export default function CompensacionPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      </div>
+    }>
+      <CompensacionContent />
+    </Suspense>
+  );
+}
+
+function CompensacionContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams.get("tab");
   const defaultTab = tabParam === "referidos" ? "referidos" : "mi-compensacion";
