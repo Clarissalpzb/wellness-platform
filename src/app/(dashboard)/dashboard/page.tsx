@@ -18,6 +18,8 @@ const SOURCE_LABELS: Record<string, string> = {
 export default async function DashboardPage() {
   const session = await auth();
   const orgId = (session?.user as any)?.organizationId;
+  const userRole = (session?.user as any)?.role;
+  const showFinancials = userRole !== "HEAD_COACH";
 
   let orgSlug: string | null = null;
   if (orgId) {
@@ -198,12 +200,14 @@ export default async function DashboardPage() {
       {orgSlug && <InviteLinkCard slug={orgSlug} />}
 
       {/* Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Ingresos del Mes"
-          value={`$${monthlyRevenue.toLocaleString()}`}
-          icon={DollarSign}
-        />
+      <div className={`grid grid-cols-1 sm:grid-cols-2 ${showFinancials ? "lg:grid-cols-4" : "lg:grid-cols-3"} gap-4`}>
+        {showFinancials && (
+          <MetricCard
+            title="Ingresos del Mes"
+            value={`$${monthlyRevenue.toLocaleString()}`}
+            icon={DollarSign}
+          />
+        )}
         <MetricCard
           title="Clientes Activos"
           value={String(activeClients)}
@@ -226,10 +230,12 @@ export default async function DashboardPage() {
       </div>
 
       {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-          <RevenueChart data={hasRevenueData ? revenueData : []} />
-        </div>
+      <div className={`grid grid-cols-1 ${showFinancials ? "lg:grid-cols-3" : ""} gap-6`}>
+        {showFinancials && (
+          <div className="lg:col-span-2">
+            <RevenueChart data={hasRevenueData ? revenueData : []} />
+          </div>
+        )}
         <BookingsPieChart data={bookingsBySource} />
       </div>
 
