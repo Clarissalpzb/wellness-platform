@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Mail } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Mail, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -56,6 +56,7 @@ export default function EquipoPage() {
 
   const [formError, setFormError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [invitedId, setInvitedId] = useState<string | null>(null);
 
   // Form state for select
   const [formRole, setFormRole] = useState("");
@@ -161,6 +162,29 @@ export default function EquipoPage() {
     setFormError(null);
   };
 
+  const handleInvite = async (userId: string, email: string) => {
+    if (email.endsWith("@placeholder.local")) {
+      alert("Este usuario no tiene un email real. Edita su perfil para agregar un email antes de enviar la invitación.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/staff/invite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId }),
+      });
+      if (res.ok) {
+        setInvitedId(userId);
+        setTimeout(() => setInvitedId(null), 2000);
+      } else {
+        const err = await res.json().catch(() => ({}));
+        alert(err.error || "Error al enviar invitación");
+      }
+    } catch {
+      alert("Error al enviar invitación");
+    }
+  };
+
   const filtered = staff.filter(
     (s) =>
       `${s.firstName} ${s.lastName || ""}`.toLowerCase().includes(search.toLowerCase()) ||
@@ -257,8 +281,13 @@ export default function EquipoPage() {
                         <DropdownMenuItem onClick={() => openEdit(member)}>
                           <Pencil className="mr-2 h-4 w-4" /> Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Mail className="mr-2 h-4 w-4" /> Enviar Invitación
+                        <DropdownMenuItem onClick={() => handleInvite(member.id, member.email)}>
+                          {invitedId === member.id ? (
+                            <Check className="mr-2 h-4 w-4 text-green-500" />
+                          ) : (
+                            <Mail className="mr-2 h-4 w-4" />
+                          )}
+                          {invitedId === member.id ? "Enviado" : "Enviar Invitación"}
                         </DropdownMenuItem>
                         <DropdownMenuItem className="text-accent-rose" onClick={() => handleDelete(member.id)}>
                           <Trash2 className="mr-2 h-4 w-4" /> Eliminar
