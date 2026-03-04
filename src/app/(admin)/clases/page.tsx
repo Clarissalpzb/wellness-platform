@@ -123,7 +123,7 @@ export default function ClasesPage() {
     if (scheduleDays.length > 0 && scheduleStart && scheduleLocation) {
       const endTime = computeEndTime(scheduleStart, duration);
       for (const day of scheduleDays) {
-        await fetch("/api/schedule", {
+        const schedRes = await fetch("/api/schedule", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -137,6 +137,12 @@ export default function ClasesPage() {
             isRecurring: true,
           }),
         });
+        if (!schedRes.ok) {
+          const err = await schedRes.json().catch(() => ({}));
+          setFormError(err.error || "Error al agregar horario");
+          fetchData();
+          return;
+        }
       }
     }
 
@@ -166,14 +172,43 @@ export default function ClasesPage() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    if (res.ok) {
-      setEditItem(null);
-      setFormLevel("");
-      fetchData();
-    } else {
+    if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       setFormError(err.error || "Error al guardar");
+      return;
     }
+
+    // Create schedules if any days were selected
+    if (scheduleDays.length > 0 && scheduleStart && scheduleLocation) {
+      const duration = Number(formData.get("duration"));
+      const endTime = computeEndTime(scheduleStart, duration);
+      for (const day of scheduleDays) {
+        const schedRes = await fetch("/api/schedule", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            classId: editItem.id,
+            dayOfWeek: day,
+            startTime: scheduleStart,
+            endTime,
+            locationId: scheduleLocation,
+            spaceId: scheduleSpace || undefined,
+            coachProfileId: scheduleCoach || undefined,
+            isRecurring: true,
+          }),
+        });
+        if (!schedRes.ok) {
+          const err = await schedRes.json().catch(() => ({}));
+          setFormError(err.error || "Error al agregar horario");
+          fetchData();
+          return;
+        }
+      }
+    }
+
+    setEditItem(null);
+    setFormLevel("");
+    fetchData();
   };
 
   const handleDelete = async (id: string) => {
