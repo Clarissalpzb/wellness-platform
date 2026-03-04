@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { campaignSchema } from "@/lib/validations";
-import { unauthorized, badRequest, success } from "@/lib/api-helpers";
+import { unauthorized, badRequest, success, requirePermission } from "@/lib/api-helpers";
 
 // GET /api/campaigns - List campaigns for the organization
 export async function GET() {
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "crm:manage");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const campaigns = await db.campaign.findMany({
@@ -32,6 +34,8 @@ export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "crm:manage");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const body = await req.json();

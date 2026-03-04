@@ -50,6 +50,23 @@ export async function POST(req: Request) {
       },
     });
 
+    // Handle referral code — create Referral record linking coach to new user
+    if (data.referralCode) {
+      const coachProfile = await db.coachProfile.findUnique({
+        where: { referralCode: data.referralCode.toUpperCase() },
+      });
+
+      if (coachProfile) {
+        await db.referral.create({
+          data: {
+            coachProfileId: coachProfile.id,
+            referredUserId: user.id,
+          },
+        });
+      }
+      // If code is invalid, silently ignore — don't block registration
+    }
+
     return NextResponse.json({
       success: true,
       userId: user.id,

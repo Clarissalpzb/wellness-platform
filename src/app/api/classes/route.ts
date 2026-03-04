@@ -2,11 +2,13 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { classSchema } from "@/lib/validations";
-import { unauthorized, badRequest, success } from "@/lib/api-helpers";
+import { unauthorized, badRequest, success, requirePermission } from "@/lib/api-helpers";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "classes:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
 
   const classes = await db.class.findMany({
@@ -30,6 +32,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "classes:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
 
   const body = await req.json();

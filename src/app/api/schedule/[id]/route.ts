@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { unauthorized, notFound, success } from "@/lib/api-helpers";
+import { unauthorized, notFound, success, requirePermission } from "@/lib/api-helpers";
 
 export async function DELETE(
   _req: NextRequest,
@@ -9,6 +9,8 @@ export async function DELETE(
 ) {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "classes:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
   const { id } = await params;
 

@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { spaceSchema } from "@/lib/validations";
-import { unauthorized, badRequest, success } from "@/lib/api-helpers";
+import { unauthorized, badRequest, success, requirePermission } from "@/lib/api-helpers";
 
 // POST /api/spaces - Create a new space
 export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "locations:manage");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const body = await req.json();

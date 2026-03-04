@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { unauthorized, success } from "@/lib/api-helpers";
+import { unauthorized, success, requirePermission } from "@/lib/api-helpers";
 
 // GET /api/users - List CLIENT users for the organization
 export async function GET() {
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "users:view");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const users = await db.user.findMany({

@@ -1,22 +1,29 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { auth } from "@/lib/auth";
 import { runInsightRules } from "@/lib/ai/insights/rules";
+import { unauthorized, requirePermission } from "@/lib/api-helpers";
 
-// GET /api/insights - List insights for an organization
+// GET /api/insights - List insights for the organization
 export async function GET(req: Request) {
+  const session = await auth();
+  if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "insights:view");
+  if (deny) return deny;
+  const orgId = (session.user as any).organizationId;
+
   const { searchParams } = new URL(req.url);
-  const organizationId = searchParams.get("organizationId");
   const type = searchParams.get("type");
   const status = searchParams.get("status");
 
-  if (!organizationId) {
+  if (!orgId) {
     return NextResponse.json(
       { error: "organizationId is required" },
       { status: 400 }
     );
   }
 
-  const where: Record<string, unknown> = { organizationId };
+  const where: Record<string, unknown> = { organizationId: orgId };
   if (type) where.type = type;
   if (status) where.status = status;
 
@@ -43,17 +50,21 @@ export async function GET(req: Request) {
 }
 
 // POST /api/insights/generate - Trigger insight generation
-export async function POST(req: Request) {
-  const { organizationId } = await req.json();
+export async function POST() {
+  const session = await auth();
+  if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "insights:view");
+  if (deny) return deny;
+  const orgId = (session.user as any).organizationId;
 
-  if (!organizationId) {
+  if (!orgId) {
     return NextResponse.json(
       { error: "organizationId is required" },
       { status: 400 }
     );
   }
 
-  const newInsights = await runInsightRules(organizationId);
+  const newInsights = await runInsightRules(orgId);
 
   return NextResponse.json({
     generated: newInsights.length,

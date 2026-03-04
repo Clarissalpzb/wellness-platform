@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { productSchema } from "@/lib/validations";
-import { unauthorized, badRequest, success } from "@/lib/api-helpers";
+import { unauthorized, badRequest, success, requirePermission } from "@/lib/api-helpers";
 
 // GET /api/products - List products for the organization
 export async function GET() {
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "pos:manage");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const products = await db.product.findMany({
@@ -31,6 +33,8 @@ export async function POST(req: Request) {
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "pos:manage");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const body = await req.json();

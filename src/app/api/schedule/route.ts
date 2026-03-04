@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { scheduleSchema } from "@/lib/validations";
-import { unauthorized, badRequest, notFound, success } from "@/lib/api-helpers";
+import { unauthorized, badRequest, notFound, success, requirePermission } from "@/lib/api-helpers";
 
 export async function GET(req: NextRequest) {
   const session = await auth();
@@ -108,6 +108,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "classes:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
 
   const body = await req.json();

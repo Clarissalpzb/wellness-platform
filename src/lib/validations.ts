@@ -51,7 +51,7 @@ export const staffSchema = z.object({
   firstName: z.string().min(2, "Mínimo 2 caracteres"),
   lastName: z.string().optional().default(""),
   email: z.string().email("Email inválido").optional().or(z.literal("")),
-  role: z.enum(["ADMIN", "FRONT_DESK", "COACH"]),
+  role: z.enum(["ADMIN", "HEAD_COACH", "FRONT_DESK", "COACH"]),
   phone: z.string().optional(),
 });
 
@@ -71,6 +71,7 @@ export const clientRegisterSchema = z.object({
   password: z.string().min(6, "Mínimo 6 caracteres"),
   phone: z.string().optional(),
   slug: z.string().optional(),
+  referralCode: z.string().optional(),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;

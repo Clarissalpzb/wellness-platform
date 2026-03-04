@@ -66,6 +66,7 @@ model Space {
 enum Role {
   OWNER
   ADMIN
+  HEAD_COACH
   FRONT_DESK
   COACH
   CLIENT
@@ -97,6 +98,7 @@ model User {
   userPackages     UserPackage[]
   transactions     Transaction[]
   coachProfile     CoachProfile?
+  referral         Referral?
   friendshipsA     Friendship[]      @relation("FriendA")
   friendshipsB     Friendship[]      @relation("FriendB")
   insightActions   InsightAction[]
@@ -152,10 +154,13 @@ model CoachProfile {
   specialties    Json    @default("[]")
   certifications Json    @default("[]")
   photoUrl       String?
+  referralCode   String? @unique
 
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   classSchedules     ClassSchedule[]
   compensationRules  CoachCompensation[]
+  availability       CoachAvailability[]
+  referrals          Referral[]
 }
 
 model CoachCompensation {
@@ -554,4 +559,37 @@ model AuditLog {
 
   @@index([organizationId, createdAt])
   @@index([entity, entityId])
+}
+
+// ─── Coach Availability ──────────────────────────────────
+
+model CoachAvailability {
+  id             String  @id @default(cuid())
+  coachProfileId String
+  dayOfWeek      Int     // 0-6
+  startTime      String  // "HH:mm"
+  endTime        String  // "HH:mm"
+  isActive       Boolean @default(true)
+
+  coachProfile CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([coachProfileId, dayOfWeek, startTime])
+  @@index([coachProfileId])
+}
+
+// ─── Referrals ───────────────────────────────────────────
+
+model Referral {
+  id              String    @id @default(cuid())
+  coachProfileId  String
+  referredUserId  String    @unique
+  bonusAmount     Float     @default(0)
+  bonusPaid       Boolean   @default(false)
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  coachProfile CoachProfile @relation(fields: [coachProfileId], references: [id], onDelete: Cascade)
+  referredUser User         @relation(fields: [referredUserId], references: [id])
+
+  @@index([coachProfileId])
 }

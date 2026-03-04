@@ -3,17 +3,19 @@ import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { staffSchema } from "@/lib/validations";
-import { unauthorized, badRequest, success } from "@/lib/api-helpers";
+import { unauthorized, badRequest, success, requirePermission } from "@/lib/api-helpers";
 
 export async function GET() {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "staff:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
 
   const staff = await db.user.findMany({
     where: {
       organizationId: orgId,
-      role: { in: ["ADMIN", "FRONT_DESK", "COACH"] },
+      role: { in: ["ADMIN", "HEAD_COACH", "FRONT_DESK", "COACH"] },
     },
     include: { coachProfile: true },
     orderBy: { createdAt: "desc" },
@@ -24,6 +26,8 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "staff:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
 
   const body = await req.json();
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
       phone: parsed.data.phone,
       passwordHash,
       organizationId: orgId,
-      ...(parsed.data.role === "COACH"
+      ...(parsed.data.role === "COACH" || parsed.data.role === "HEAD_COACH"
         ? { coachProfile: { create: {} } }
         : {}),
     },

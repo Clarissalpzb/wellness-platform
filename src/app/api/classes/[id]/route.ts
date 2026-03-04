@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { classSchema } from "@/lib/validations";
-import { unauthorized, badRequest, notFound, success } from "@/lib/api-helpers";
+import { unauthorized, badRequest, notFound, success, requirePermission } from "@/lib/api-helpers";
 
 export async function GET(
   _req: NextRequest,
@@ -10,6 +10,8 @@ export async function GET(
 ) {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "classes:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
   const { id } = await params;
 
@@ -35,6 +37,8 @@ export async function PUT(
 ) {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "classes:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
   const { id } = await params;
 
@@ -60,6 +64,8 @@ export async function DELETE(
 ) {
   const session = await auth();
   if (!session?.user) return unauthorized();
+  const deny = requirePermission(session, "classes:manage");
+  if (deny) return deny;
   const orgId = (session.user as any).organizationId;
   const { id } = await params;
 

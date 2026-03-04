@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { DollarSign, Calendar, TrendingUp, Download, Users, Copy, Check, Share2, Gift, UserPlus, Award } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
+import { DollarSign, Calendar, TrendingUp, Download, Users, Copy, Check, Share2, Gift, UserPlus, Award, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,30 +19,81 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
+interface ReferralData {
+  referralCode: string | null;
+  referrals: {
+    id: string;
+    name: string;
+    signupDate: string;
+    classesAttended: number;
+    status: string;
+    bonusEarned: number;
+    completedAt: string | null;
+  }[];
+  totalReferrals: number;
+  activeReferrals: number;
+  totalBonus: number;
+}
+
 const compensationHistory: any[] = [];
-
 const classBreakdown: any[] = [];
-
 const coachCompensation: any[] = [];
 
-const myReferralCode = "";
-
-const referralHistory: any[] = [];
-
 export default function CompensacionPage() {
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab");
+  const defaultTab = tabParam === "referidos" ? "referidos" : "mi-compensacion";
+
   const [copied, setCopied] = useState(false);
+  const [referralData, setReferralData] = useState<ReferralData | null>(null);
+  const [loadingReferrals, setLoadingReferrals] = useState(true);
+  const [generatingCode, setGeneratingCode] = useState(false);
+
+  const fetchReferrals = useCallback(async () => {
+    try {
+      const res = await fetch("/api/coach/referrals");
+      if (res.ok) {
+        const data = await res.json();
+        setReferralData(data);
+      }
+    } finally {
+      setLoadingReferrals(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReferrals();
+  }, [fetchReferrals]);
+
+  const handleGenerateCode = async () => {
+    setGeneratingCode(true);
+    try {
+      const res = await fetch("/api/coach/referral-code", { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        setReferralData((prev) =>
+          prev ? { ...prev, referralCode: data.referralCode } : prev
+        );
+      }
+    } finally {
+      setGeneratingCode(false);
+    }
+  };
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(myReferralCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (referralData?.referralCode) {
+      navigator.clipboard.writeText(referralData.referralCode);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const sortedCoaches = [...coachCompensation].sort((a, b) => b.totalEarnings - a.totalEarnings);
 
-  const totalReferrals = referralHistory.length;
-  const activeReferrals = referralHistory.filter((r) => r.status === "active").length;
-  const totalReferralBonus = referralHistory.reduce((sum, r) => sum + r.bonusEarned, 0);
+  const totalReferrals = referralData?.totalReferrals ?? 0;
+  const activeReferrals = referralData?.activeReferrals ?? 0;
+  const totalReferralBonus = referralData?.totalBonus ?? 0;
+  const referralHistory = referralData?.referrals ?? [];
 
   return (
     <div className="space-y-6">
@@ -62,7 +114,7 @@ export default function CompensacionPage() {
         <MetricCard title="Promedio por Clase" value="$0" icon={TrendingUp} iconColor="text-accent-amber" iconBg="bg-accent-amber-light" />
       </div>
 
-      <Tabs defaultValue="mi-compensacion">
+      <Tabs defaultValue={defaultTab}>
         <TabsList>
           <TabsTrigger value="mi-compensacion">Mi Compensación</TabsTrigger>
           <TabsTrigger value="por-coach">Por Coach</TabsTrigger>
@@ -247,31 +299,51 @@ export default function CompensacionPage() {
               <p className="text-sm text-neutral-500 mb-4">
                 Comparte tu código con nuevos usuarios. Recibirás un bonus por cada referido que se registre y tome clases.
               </p>
-              <div className="flex gap-2">
-                <Input
-                  readOnly
-                  value={myReferralCode}
-                  className="font-mono text-base font-semibold max-w-xs"
-                  placeholder="Sin código asignado"
-                />
-                <Button variant="outline" onClick={handleCopy} disabled={!myReferralCode}>
-                  {copied ? (
+              {loadingReferrals ? (
+                <div className="flex items-center gap-2 text-neutral-400">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Cargando...
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    readOnly
+                    value={referralData?.referralCode || ""}
+                    className="font-mono text-base font-semibold max-w-xs"
+                    placeholder="Sin código asignado"
+                  />
+                  {referralData?.referralCode ? (
                     <>
-                      <Check className="mr-2 h-4 w-4 text-primary-600" />
-                      Copiado
+                      <Button variant="outline" onClick={handleCopy}>
+                        {copied ? (
+                          <>
+                            <Check className="mr-2 h-4 w-4 text-primary-600" />
+                            Copiado
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="mr-2 h-4 w-4" />
+                            Copiar
+                          </>
+                        )}
+                      </Button>
+                      <Button variant="outline">
+                        <Share2 className="mr-2 h-4 w-4" />
+                        Compartir
+                      </Button>
                     </>
                   ) : (
-                    <>
-                      <Copy className="mr-2 h-4 w-4" />
-                      Copiar
-                    </>
+                    <Button onClick={handleGenerateCode} disabled={generatingCode}>
+                      {generatingCode ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Gift className="mr-2 h-4 w-4" />
+                      )}
+                      Generar Código
+                    </Button>
                   )}
-                </Button>
-                <Button variant="outline" disabled={!myReferralCode}>
-                  <Share2 className="mr-2 h-4 w-4" />
-                  Compartir
-                </Button>
-              </div>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -288,7 +360,7 @@ export default function CompensacionPage() {
             <CardContent>
               {referralHistory.length === 0 ? (
                 <div className="text-center py-12 text-neutral-500">
-                  <p>No hay datos disponibles</p>
+                  <p>No hay referidos aún</p>
                 </div>
               ) : (
                 <Table>
@@ -303,25 +375,15 @@ export default function CompensacionPage() {
                   </TableHeader>
                   <TableBody>
                     {referralHistory.map((referral) => (
-                      <TableRow key={referral.name}>
+                      <TableRow key={referral.id}>
                         <TableCell className="font-medium">{referral.name}</TableCell>
                         <TableCell>{new Date(referral.signupDate).toLocaleDateString("es-MX", { day: "numeric", month: "short", year: "numeric" })}</TableCell>
                         <TableCell>{referral.classesAttended}</TableCell>
                         <TableCell>
                           <Badge
-                            variant={
-                              referral.status === "active"
-                                ? "success"
-                                : referral.status === "pending"
-                                  ? "warning"
-                                  : "secondary"
-                            }
+                            variant={referral.status === "active" ? "success" : "warning"}
                           >
-                            {referral.status === "active"
-                              ? "Activo"
-                              : referral.status === "pending"
-                                ? "Pendiente"
-                                : "Prueba"}
+                            {referral.status === "active" ? "Activo" : "Pendiente"}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right font-bold">${referral.bonusEarned}</TableCell>

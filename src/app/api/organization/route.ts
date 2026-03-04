@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { unauthorized } from "@/lib/api-helpers";
+import { unauthorized, requirePermission } from "@/lib/api-helpers";
 
 // GET /api/organization - Get current user's organization
 export async function GET() {
@@ -35,10 +35,11 @@ export async function PUT(req: Request) {
     const session = await auth();
     if (!session?.user) return unauthorized();
     const orgId = (session.user as any).organizationId;
-    const role = (session.user as any).role;
+    const deny = requirePermission(session, "settings:manage");
+    if (deny) return deny;
 
-    if (!orgId || (role !== "OWNER" && role !== "ADMIN")) {
-      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    if (!orgId) {
+      return NextResponse.json({ error: "Sin organización" }, { status: 404 });
     }
 
     const body = await req.json();

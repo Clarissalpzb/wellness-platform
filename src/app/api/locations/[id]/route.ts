@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
 import { locationSchema } from "@/lib/validations";
-import { unauthorized, badRequest, notFound, success } from "@/lib/api-helpers";
+import { unauthorized, badRequest, notFound, success, requirePermission } from "@/lib/api-helpers";
 
 // GET /api/locations/[id] - Get a single location with spaces
 export async function GET(
@@ -12,6 +12,8 @@ export async function GET(
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "locations:manage");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const { id } = await params;
@@ -43,6 +45,8 @@ export async function PUT(
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "locations:manage");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const { id } = await params;
@@ -84,6 +88,8 @@ export async function DELETE(
   try {
     const session = await auth();
     if (!session?.user) return unauthorized();
+    const deny = requirePermission(session, "locations:manage");
+    if (deny) return deny;
     const orgId = (session.user as any).organizationId;
 
     const { id } = await params;
