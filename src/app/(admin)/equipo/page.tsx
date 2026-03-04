@@ -34,13 +34,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 const roleLabels: Record<string, string> = {
   OWNER: "Propietario",
   ADMIN: "Administrador",
+  HEAD_COACH: "Head Coach",
   FRONT_DESK: "Recepción",
   COACH: "Coach",
 };
 
-const roleBadgeVariant: Record<string, "default" | "secondary" | "info" | "warning"> = {
+const roleBadgeVariant: Record<string, "default" | "secondary" | "info" | "warning" | "success"> = {
   OWNER: "default",
   ADMIN: "info",
+  HEAD_COACH: "success",
   FRONT_DESK: "warning",
   COACH: "secondary",
 };
@@ -299,6 +301,7 @@ export default function EquipoPage() {
                 <SelectTrigger><SelectValue placeholder="Seleccionar rol" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="ADMIN">Administrador</SelectItem>
+                  <SelectItem value="HEAD_COACH">Head Coach</SelectItem>
                   <SelectItem value="FRONT_DESK">Recepción</SelectItem>
                   <SelectItem value="COACH">Coach</SelectItem>
                 </SelectContent>
