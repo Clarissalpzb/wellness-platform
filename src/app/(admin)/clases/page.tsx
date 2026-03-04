@@ -481,7 +481,7 @@ export default function ClasesPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="waitlistMax">Lista de espera</Label>
-              <Input id="waitlistMax" name="waitlistMax" type="number" placeholder="0" defaultValue={editItem?.waitlistMax || ""} />
+              <Input id="waitlistMax" name="waitlistMax" type="number" placeholder="0" defaultValue={editItem?.waitlistMax ?? 0} />
             </div>
             {/* Banner image */}
             <div className="space-y-2">
