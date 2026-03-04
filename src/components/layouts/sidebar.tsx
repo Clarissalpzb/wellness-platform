@@ -19,6 +19,7 @@ import {
   DollarSign,
   Clock,
   Gift,
+  UserCheck,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -56,6 +57,7 @@ const allNavGroups: NavGroup[] = [
       { name: "Equipo", href: "/equipo", icon: UserCog, permission: "staff:manage" },
       { name: "Sucursales", href: "/espacios", icon: Building2, permission: "locations:manage" },
       { name: "Usuarios", href: "/usuarios", icon: Users, permission: "users:view" },
+      { name: "Check-in", href: "/checkin", icon: UserCheck, permission: "users:checkin" },
       { name: "CRM", href: "/crm", icon: Megaphone, permission: "crm:manage" },
       { name: "Punto de Venta", href: "/pos", icon: ShoppingBag, permission: "pos:manage" },
     ],
