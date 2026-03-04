@@ -34,7 +34,6 @@ export default function ClasesPage() {
   const [formError, setFormError] = useState<string | null>(null);
 
   // Form state for selects (not captured by FormData)
-  const [formCategory, setFormCategory] = useState("");
   const [formLevel, setFormLevel] = useState("");
   const [formColor, setFormColor] = useState("#3b82f6");
 
@@ -101,8 +100,8 @@ export default function ClasesPage() {
       description: formData.get("description") as string,
       duration,
       maxCapacity: Number(formData.get("maxCapacity")),
-      category: formCategory,
-      level: formLevel,
+      category: (formData.get("category") as string)?.trim() || undefined,
+      level: formLevel || undefined,
       color: formColor,
       waitlistMax: Number(formData.get("waitlistMax")) || 0,
     };
@@ -155,8 +154,8 @@ export default function ClasesPage() {
       description: formData.get("description") as string,
       duration: Number(formData.get("duration")),
       maxCapacity: Number(formData.get("maxCapacity")),
-      category: formCategory || editItem.category,
-      level: formLevel || editItem.level,
+      category: (formData.get("category") as string)?.trim() || editItem.category || undefined,
+      level: formLevel || editItem.level || undefined,
       color: formColor || editItem.color,
       waitlistMax: Number(formData.get("waitlistMax")) || 0,
     };
@@ -169,7 +168,6 @@ export default function ClasesPage() {
     });
     if (res.ok) {
       setEditItem(null);
-      setFormCategory("");
       setFormLevel("");
       fetchData();
     } else {
@@ -185,7 +183,6 @@ export default function ClasesPage() {
   };
 
   const openEdit = (cls: any) => {
-    setFormCategory(cls.category || "");
     setFormLevel(cls.level || "");
     setFormColor(cls.color || "#3b82f6");
     setFormImage(cls.imageUrl || null);
@@ -196,7 +193,6 @@ export default function ClasesPage() {
   const closeDialog = () => {
     setShowCreate(false);
     setEditItem(null);
-    setFormCategory("");
     setFormLevel("");
     setFormColor("#3b82f6");
     setFormImage(null);
@@ -438,17 +434,24 @@ export default function ClasesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Categoría</Label>
-                <Select value={formCategory} onValueChange={setFormCategory}>
-                  <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="Yoga">Yoga</SelectItem>
-                    <SelectItem value="Cardio">Cardio</SelectItem>
-                    <SelectItem value="Pilates">Pilates</SelectItem>
-                    <SelectItem value="Fuerza">Fuerza</SelectItem>
-                    <SelectItem value="Mindfulness">Mindfulness</SelectItem>
-                  </SelectContent>
-                </Select>
+                <Label htmlFor="category">Categoría</Label>
+                <Input
+                  id="category"
+                  name="category"
+                  list="category-suggestions"
+                  placeholder="Ej: Reformer, Barre, Yoga..."
+                  defaultValue={editItem?.category || ""}
+                />
+                <datalist id="category-suggestions">
+                  <option value="Reformer" />
+                  <option value="Barre" />
+                  <option value="Yoga" />
+                  <option value="Cycling" />
+                  <option value="Pilates" />
+                  <option value="Fuerza" />
+                  <option value="Cardio" />
+                  <option value="Mindfulness" />
+                </datalist>
               </div>
               <div className="space-y-2">
                 <Label>Nivel</Label>
