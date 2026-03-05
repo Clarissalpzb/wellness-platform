@@ -38,8 +38,38 @@ export async function POST(req: NextRequest) {
 
   const existingUser = await db.user.findUnique({
     where: { email },
+    include: { coachProfile: true },
   });
-  if (existingUser) return badRequest("Ya existe un usuario con ese email");
+
+  if (existingUser) {
+    // If user already belongs to a different org as staff, reject
+    if (
+      existingUser.organizationId &&
+      existingUser.organizationId !== orgId &&
+      existingUser.role !== "CLIENT"
+    ) {
+      return badRequest("Este usuario ya pertenece a otra organización como staff");
+    }
+
+    // Promote existing user (e.g. CLIENT) to the new staff role in this org
+    const needsCoachProfile =
+      (parsed.data.role === "COACH" || parsed.data.role === "HEAD_COACH") &&
+      !existingUser.coachProfile;
+
+    const updated = await db.user.update({
+      where: { id: existingUser.id },
+      data: {
+        role: parsed.data.role,
+        organizationId: orgId,
+        firstName: parsed.data.firstName || existingUser.firstName,
+        lastName: parsed.data.lastName || existingUser.lastName,
+        phone: parsed.data.phone || existingUser.phone,
+        ...(needsCoachProfile ? { coachProfile: { create: {} } } : {}),
+      },
+      include: { coachProfile: true },
+    });
+    return success(updated, 200);
+  }
 
   const passwordHash = await bcrypt.hash("temppass123", 12);
 
