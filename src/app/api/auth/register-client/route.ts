@@ -45,6 +45,7 @@ export async function POST(req: Request) {
         firstName: data.firstName,
         lastName: data.lastName,
         phone: data.phone || null,
+        dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : null,
         role: "CLIENT",
         ...(organizationId ? { organizationId } : {}),
       },

@@ -26,6 +26,7 @@ interface ProfileData {
   lastName: string;
   email: string;
   phone: string;
+  dateOfBirth: string;
   avatarUrl: string;
   initials: string;
   healthFlags: HealthFlag[];
@@ -66,6 +67,7 @@ const defaultProfile: ProfileData = {
   lastName: "",
   email: "",
   phone: "",
+  dateOfBirth: "",
   avatarUrl: "",
   initials: "",
   healthFlags: defaultHealthFlags,
@@ -105,6 +107,7 @@ export default function PerfilPage() {
   const [lastName, setLastName] = useState(defaultProfile.lastName);
   const [email, setEmail] = useState(defaultProfile.email);
   const [phone, setPhone] = useState(defaultProfile.phone);
+  const [dateOfBirth, setDateOfBirth] = useState(defaultProfile.dateOfBirth);
   const [notifications, setNotifications] = useState(defaultProfile.notifications);
 
   // ---- Fetch profile on mount ----
@@ -120,6 +123,7 @@ export default function PerfilPage() {
         lastName: data.lastName ?? data.last_name ?? defaultProfile.lastName,
         email: data.email ?? defaultProfile.email,
         phone: data.phone ?? defaultProfile.phone,
+        dateOfBirth: data.dateOfBirth ? data.dateOfBirth.split("T")[0] : defaultProfile.dateOfBirth,
         avatarUrl: data.avatarUrl ?? data.avatar_url ?? defaultProfile.avatarUrl,
         initials: data.initials ?? `${(data.firstName ?? data.first_name ?? "")[0] ?? ""}${(data.lastName ?? data.last_name ?? "")[0] ?? ""}`,
         healthFlags: Array.isArray(data.healthFlags) ? data.healthFlags : defaultProfile.healthFlags,
@@ -133,6 +137,7 @@ export default function PerfilPage() {
       setLastName(merged.lastName);
       setEmail(merged.email);
       setPhone(merged.phone);
+      setDateOfBirth(merged.dateOfBirth);
       setFlags(merged.healthFlags);
       setNotifications(merged.notifications);
     } catch {
@@ -168,6 +173,7 @@ export default function PerfilPage() {
           lastName,
           email,
           phone,
+          dateOfBirth: dateOfBirth || null,
           healthFlags: flags,
           notifications,
         }),
@@ -258,6 +264,15 @@ export default function PerfilPage() {
                     type="tel"
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth">Fecha de nacimiento</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
                   />
                 </div>
 

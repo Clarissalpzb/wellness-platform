@@ -48,9 +48,11 @@ export async function GET(req: NextRequest) {
   const schedules = await db.classSchedule.findMany({
     where: {
       class: { organizationId: targetOrgId, isActive: true },
-      dayOfWeek,
-      isRecurring: true,
       isCancelled: false,
+      OR: [
+        { dayOfWeek, isRecurring: true },
+        { specificDate: { gte: dateStart, lt: dateEnd } },
+      ],
     },
     include: {
       class: {

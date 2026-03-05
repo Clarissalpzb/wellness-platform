@@ -138,6 +138,15 @@ export default function RegistroAtletaPage() {
           </div>
 
           <div className="space-y-2">
+            <Label htmlFor="dateOfBirth">Fecha de nacimiento (opcional)</Label>
+            <Input
+              id="dateOfBirth"
+              type="date"
+              {...register("dateOfBirth")}
+            />
+          </div>
+
+          <div className="space-y-2">
             <Label htmlFor="password">Contraseña</Label>
             <Input
               id="password"

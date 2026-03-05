@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, Calendar, Clock, X, ImagePlus } from "lucide-react";
+import { Plus, Search, Filter, MoreHorizontal, Pencil, Trash2, Calendar, Clock, X, ImagePlus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -47,6 +47,12 @@ export default function ClasesPage() {
 
   // Coach/instructor state
   const [coaches, setCoaches] = useState<any[]>([]);
+
+  // Replicate week state
+  const [showReplicate, setShowReplicate] = useState(false);
+  const [replicateDate, setReplicateDate] = useState("");
+  const [replicating, setReplicating] = useState(false);
+  const [replicateMsg, setReplicateMsg] = useState<string | null>(null);
 
   // Schedule management state
   const [scheduleClass, setScheduleClass] = useState<any>(null);
@@ -322,6 +328,29 @@ export default function ClasesPage() {
     }
   };
 
+  const handleReplicate = async () => {
+    if (!replicateDate) return;
+    setReplicating(true);
+    setReplicateMsg(null);
+    try {
+      const res = await fetch("/api/schedule/replicate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetWeekStart: replicateDate }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReplicateMsg(data.message || `Se crearon ${data.created} horarios`);
+      } else {
+        setReplicateMsg(data.error || "Error al replicar");
+      }
+    } catch {
+      setReplicateMsg("Error de conexión");
+    } finally {
+      setReplicating(false);
+    }
+  };
+
   const selectedLocation = locations.find((l: any) => l.id === scheduleLocation);
   const filteredSpaces = selectedLocation?.spaces ?? [];
 
@@ -347,10 +376,16 @@ export default function ClasesPage() {
           <h1 className="text-2xl font-bold text-neutral-900">Clases</h1>
           <p className="text-sm text-neutral-500">Gestiona las clases de tu centro</p>
         </div>
-        <Button onClick={() => setShowCreate(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nueva Clase
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => { setShowReplicate(true); setReplicateMsg(null); setReplicateDate(""); }}>
+            <Copy className="mr-2 h-4 w-4" />
+            Replicar Semana
+          </Button>
+          <Button onClick={() => setShowCreate(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nueva Clase
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-3">
@@ -686,6 +721,40 @@ export default function ClasesPage() {
               <Button type="submit">{isEditing ? "Guardar Cambios" : "Crear Clase"}</Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Replicate week dialog */}
+      <Dialog open={showReplicate} onOpenChange={(open) => { if (!open) setShowReplicate(false); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Replicar Semana</DialogTitle>
+            <DialogDescription>
+              Copia todos los horarios recurrentes a una semana específica
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Lunes de la semana objetivo</Label>
+              <Input
+                type="date"
+                value={replicateDate}
+                onChange={(e) => setReplicateDate(e.target.value)}
+              />
+              <p className="text-xs text-neutral-400">Selecciona el lunes de la semana donde quieres replicar los horarios</p>
+            </div>
+            {replicateMsg && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700">
+                {replicateMsg}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReplicate(false)}>Cancelar</Button>
+            <Button onClick={handleReplicate} disabled={!replicateDate || replicating}>
+              {replicating ? "Replicando..." : "Replicar"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
 

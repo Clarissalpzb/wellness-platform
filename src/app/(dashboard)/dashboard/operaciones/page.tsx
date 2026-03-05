@@ -1,15 +1,202 @@
-import { Clock, Users, AlertTriangle, CheckCircle2, XCircle } from "lucide-react";
+import { Clock, Users, CheckCircle2, XCircle } from "lucide-react";
 import { MetricCard } from "@/components/charts/metric-card";
 import { OccupancyHeatmap } from "@/components/charts/occupancy-heatmap";
+import { DayOccupancyChart } from "@/components/charts/day-occupancy-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { auth } from "@/lib/auth";
+import { db } from "@/lib/db";
 
-const todayClasses: any[] = [];
+const DAY_NAMES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+const HEATMAP_DAYS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
+const HEATMAP_DAY_MAP: Record<string, number> = {
+  Lun: 1, Mar: 2, Mié: 3, Jue: 4, Vie: 5, Sáb: 6, Dom: 0,
+};
 
-const statusLabels: Record<string, string> = { completed: "Completada", in_progress: "En curso", upcoming: "Próxima" };
-const statusVariant: Record<string, "secondary" | "success" | "info"> = { completed: "secondary", in_progress: "success", upcoming: "info" };
+export default async function OperacionesPage() {
+  const session = await auth();
+  const orgId = (session?.user as any)?.organizationId as string | undefined;
 
-export default function OperacionesPage() {
+  const now = new Date();
+  const todayDow = now.getDay();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const endOfDay = new Date(startOfDay.getTime() + 86400000);
+
+  const orgClassFilter = orgId
+    ? { classSchedule: { class: { organizationId: orgId } } }
+    : undefined;
+
+  // ---- Metric cards ----
+  let classesToday = 0;
+  let checkIns = 0;
+  let noShows = 0;
+  let waitlistCount = 0;
+
+  if (orgId) {
+    [classesToday, checkIns, noShows, waitlistCount] = await Promise.all([
+      db.classSchedule.count({
+        where: {
+          class: { organizationId: orgId, isActive: true },
+          dayOfWeek: todayDow,
+          isRecurring: true,
+          isCancelled: false,
+        },
+      }),
+      db.booking.count({
+        where: {
+          date: { gte: startOfDay, lt: endOfDay },
+          status: "CHECKED_IN",
+          ...orgClassFilter!,
+        },
+      }),
+      db.booking.count({
+        where: {
+          date: { gte: startOfDay, lt: endOfDay },
+          status: "NO_SHOW",
+          ...orgClassFilter!,
+        },
+      }),
+      db.waitlistEntry.count({
+        where: {
+          date: { gte: startOfDay, lt: endOfDay },
+          promotedAt: null,
+          expiredAt: null,
+          classSchedule: { class: { organizationId: orgId } },
+        },
+      }),
+    ]);
+  }
+
+  // ---- Today's schedule ----
+  interface TodayClass {
+    time: string;
+    name: string;
+    coach: string;
+    enrolled: number;
+    capacity: number;
+    status: "completed" | "in_progress" | "upcoming";
+  }
+  let todayClasses: TodayClass[] = [];
+
+  if (orgId) {
+    const dateStart = new Date(startOfDay);
+    const dateEnd = new Date(endOfDay);
+
+    const schedules = await db.classSchedule.findMany({
+      where: {
+        class: { organizationId: orgId, isActive: true },
+        dayOfWeek: todayDow,
+        isRecurring: true,
+        isCancelled: false,
+      },
+      include: {
+        class: { select: { name: true, maxCapacity: true, duration: true } },
+        coachProfile: {
+          include: { user: { select: { firstName: true, lastName: true } } },
+        },
+        bookings: {
+          where: { date: { gte: dateStart, lt: dateEnd }, status: { not: "CANCELLED" } },
+          select: { id: true },
+        },
+      },
+      orderBy: { startTime: "asc" },
+    });
+
+    const currentTime = `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+
+    todayClasses = schedules.map((s) => {
+      let status: TodayClass["status"] = "upcoming";
+      if (s.endTime <= currentTime) status = "completed";
+      else if (s.startTime <= currentTime) status = "in_progress";
+
+      return {
+        time: s.startTime,
+        name: s.class.name,
+        coach: s.coachProfile
+          ? `${s.coachProfile.user.firstName} ${s.coachProfile.user.lastName}`
+          : "",
+        enrolled: s.bookings.length,
+        capacity: s.class.maxCapacity,
+        status,
+      };
+    });
+  }
+
+  // ---- Occupancy heatmap data (last 4 weeks) ----
+  const heatmapData: Record<string, Record<string, number>> = {};
+  const dayOccupancyData: { day: string; occupancy: number }[] = [];
+
+  if (orgId) {
+    const fourWeeksAgo = new Date(now.getTime() - 28 * 86400000);
+
+    const allSchedules = await db.classSchedule.findMany({
+      where: {
+        class: { organizationId: orgId, isActive: true },
+        isRecurring: true,
+        isCancelled: false,
+      },
+      include: {
+        class: { select: { maxCapacity: true } },
+        bookings: {
+          where: {
+            date: { gte: fourWeeksAgo },
+            status: { not: "CANCELLED" },
+          },
+          select: { id: true },
+        },
+      },
+    });
+
+    // Group by dayOfWeek + hour
+    const slotData: Record<string, { totalBookings: number; totalCapacity: number; weeksWithData: number }> = {};
+
+    for (const schedule of allSchedules) {
+      const dayName = HEATMAP_DAYS[schedule.dayOfWeek === 0 ? 6 : schedule.dayOfWeek - 1];
+      const hour = schedule.startTime.split(":")[0] + ":00";
+      const key = `${dayName}-${hour}`;
+
+      if (!slotData[key]) {
+        slotData[key] = { totalBookings: 0, totalCapacity: 0, weeksWithData: 4 };
+      }
+
+      slotData[key].totalBookings += schedule.bookings.length;
+      slotData[key].totalCapacity += schedule.class.maxCapacity * 4; // 4 weeks
+    }
+
+    // Build heatmap structure
+    for (const [key, data] of Object.entries(slotData)) {
+      const [day, hour] = key.split("-");
+      if (!heatmapData[day]) heatmapData[day] = {};
+      const pct = data.totalCapacity > 0
+        ? Math.round((data.totalBookings / data.totalCapacity) * 100)
+        : 0;
+      heatmapData[day][hour] = pct;
+    }
+
+    // Build day occupancy (average across all hours for each day)
+    for (const dayName of HEATMAP_DAYS) {
+      const hours = heatmapData[dayName];
+      if (!hours || Object.keys(hours).length === 0) {
+        dayOccupancyData.push({ day: dayName, occupancy: 0 });
+        continue;
+      }
+      const values = Object.values(hours);
+      const avg = values.reduce((a, b) => a + b, 0) / values.length;
+      dayOccupancyData.push({ day: dayName, occupancy: Math.round(avg) });
+    }
+  }
+
+  const statusLabels: Record<string, string> = {
+    completed: "Completada",
+    in_progress: "En curso",
+    upcoming: "Próxima",
+  };
+  const statusVariant: Record<string, "secondary" | "success" | "info"> = {
+    completed: "secondary",
+    in_progress: "success",
+    upcoming: "info",
+  };
+
   return (
     <div className="space-y-6">
       <div>
@@ -18,10 +205,10 @@ export default function OperacionesPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard title="Clases Hoy" value="0" icon={Clock} iconColor="text-accent-blue" iconBg="bg-accent-blue-light" />
-        <MetricCard title="Check-ins" value="0" icon={CheckCircle2} />
-        <MetricCard title="No-shows" value="0" icon={XCircle} iconColor="text-accent-rose" iconBg="bg-accent-rose-light" />
-        <MetricCard title="En Lista Espera" value="0" icon={Users} iconColor="text-accent-amber" iconBg="bg-accent-amber-light" />
+        <MetricCard title="Clases Hoy" value={String(classesToday)} icon={Clock} iconColor="text-accent-blue" iconBg="bg-accent-blue-light" />
+        <MetricCard title="Check-ins" value={String(checkIns)} icon={CheckCircle2} />
+        <MetricCard title="No-shows" value={String(noShows)} icon={XCircle} iconColor="text-accent-rose" iconBg="bg-accent-rose-light" />
+        <MetricCard title="En Lista Espera" value={String(waitlistCount)} icon={Users} iconColor="text-accent-amber" iconBg="bg-accent-amber-light" />
       </div>
 
       {/* Today's Schedule */}
@@ -32,7 +219,7 @@ export default function OperacionesPage() {
         <CardContent>
           {todayClasses.length === 0 ? (
             <div className="text-center py-12 text-neutral-500">
-              <p>No hay datos disponibles</p>
+              <p>No hay clases programadas para hoy</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -61,8 +248,11 @@ export default function OperacionesPage() {
         </CardContent>
       </Card>
 
-      {/* Occupancy Heatmap */}
-      <OccupancyHeatmap />
+      {/* Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <OccupancyHeatmap data={heatmapData} />
+        <DayOccupancyChart data={dayOccupancyData} />
+      </div>
     </div>
   );
 }

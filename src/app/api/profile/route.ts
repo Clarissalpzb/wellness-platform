@@ -16,6 +16,7 @@ export async function GET() {
       firstName: true,
       lastName: true,
       phone: true,
+      dateOfBirth: true,
       avatar: true,
       healthFlags: true,
       preferences: true,
@@ -115,6 +116,7 @@ export async function GET() {
     firstName: user.firstName,
     lastName: user.lastName,
     phone: user.phone,
+    dateOfBirth: user.dateOfBirth,
     avatar: user.avatar,
     healthFlags: user.healthFlags,
     preferences: user.preferences,
@@ -152,13 +154,18 @@ export async function PUT(req: NextRequest) {
   }
 
   // Only allow updating specific fields
-  const allowedFields = ["firstName", "lastName", "phone", "healthFlags", "preferences"];
+  const allowedFields = ["firstName", "lastName", "phone", "dateOfBirth", "healthFlags", "preferences"];
   const updateData: Record<string, any> = {};
 
   for (const field of allowedFields) {
     if (body[field] !== undefined) {
       updateData[field] = body[field];
     }
+  }
+
+  // Parse dateOfBirth as Date if provided
+  if (updateData.dateOfBirth !== undefined) {
+    updateData.dateOfBirth = updateData.dateOfBirth ? new Date(updateData.dateOfBirth) : null;
   }
 
   if (Object.keys(updateData).length === 0) {

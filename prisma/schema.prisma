@@ -14,7 +14,8 @@ model Organization {
   name      String
   slug      String   @unique
   logo      String?
-  settings  Json     @default("{}")
+  settings           Json     @default("{}")
+  monthlyOperatingCost Float   @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -83,6 +84,7 @@ model User {
   firstName      String
   lastName       String
   phone          String?
+  dateOfBirth    DateTime?
   avatar         String?
   healthFlags    Json     @default("[]")
   preferences    Json     @default("{}")

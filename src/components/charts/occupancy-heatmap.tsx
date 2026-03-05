@@ -6,8 +6,6 @@ import { cn } from "@/lib/utils";
 const days = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 const hours = ["07:00", "08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00", "19:00", "20:00"];
 
-const occupancy: Record<string, Record<string, number>> = {};
-
 function getColor(value: number): string {
   if (value >= 90) return "bg-primary-600";
   if (value >= 70) return "bg-primary-400";
@@ -17,7 +15,8 @@ function getColor(value: number): string {
   return "bg-neutral-100";
 }
 
-export function OccupancyHeatmap() {
+export function OccupancyHeatmap({ data }: { data?: Record<string, Record<string, number>> }) {
+  const occupancy = data ?? {};
   return (
     <Card>
       <CardHeader>

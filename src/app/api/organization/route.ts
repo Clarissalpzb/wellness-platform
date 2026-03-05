@@ -15,7 +15,7 @@ export async function GET() {
 
     const org = await db.organization.findUnique({
       where: { id: orgId },
-      select: { id: true, name: true, slug: true, logo: true, settings: true },
+      select: { id: true, name: true, slug: true, logo: true, settings: true, monthlyOperatingCost: true },
     });
 
     if (!org) {
@@ -43,16 +43,26 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json();
-    const { name } = body;
+    const { name, monthlyOperatingCost } = body;
 
     if (!name || typeof name !== "string" || name.trim().length < 2) {
       return NextResponse.json({ error: "El nombre debe tener al menos 2 caracteres" }, { status: 400 });
     }
 
+    const updateData: any = { name: name.trim() };
+
+    if (monthlyOperatingCost !== undefined) {
+      const cost = Number(monthlyOperatingCost);
+      if (isNaN(cost) || cost < 0) {
+        return NextResponse.json({ error: "Costo mensual inválido" }, { status: 400 });
+      }
+      updateData.monthlyOperatingCost = cost;
+    }
+
     const org = await db.organization.update({
       where: { id: orgId },
-      data: { name: name.trim() },
-      select: { id: true, name: true, slug: true, logo: true, settings: true },
+      data: updateData,
+      select: { id: true, name: true, slug: true, logo: true, settings: true, monthlyOperatingCost: true },
     });
 
     return NextResponse.json(org);

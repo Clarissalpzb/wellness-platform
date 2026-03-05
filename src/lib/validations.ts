@@ -70,6 +70,7 @@ export const clientRegisterSchema = z.object({
   email: z.string().email("Email inválido"),
   password: z.string().min(6, "Mínimo 6 caracteres"),
   phone: z.string().optional(),
+  dateOfBirth: z.string().optional(),
   slug: z.string().optional(),
   referralCode: z.string().optional(),
 });

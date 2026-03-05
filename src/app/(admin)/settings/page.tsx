@@ -13,6 +13,7 @@ interface OrgData {
   slug: string;
   logo: string | null;
   settings: Record<string, unknown>;
+  monthlyOperatingCost: number;
 }
 
 export default function SettingsPage() {
@@ -20,6 +21,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState("");
+  const [monthlyOperatingCost, setMonthlyOperatingCost] = useState(0);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -31,6 +33,7 @@ export default function SettingsPage() {
           const data = await res.json();
           setOrg(data);
           setName(data.name);
+          setMonthlyOperatingCost(data.monthlyOperatingCost ?? 0);
         }
       } catch (e) {
         console.error(e);
@@ -51,7 +54,7 @@ export default function SettingsPage() {
       const res = await fetch("/api/organization", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, monthlyOperatingCost }),
       });
 
       if (res.ok) {
@@ -127,6 +130,19 @@ export default function SettingsPage() {
                 className="bg-neutral-50"
               />
               <p className="text-xs text-neutral-400">El slug no puede modificarse</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="monthlyOperatingCost">Costo Mensual de Operación ($MXN)</Label>
+              <Input
+                id="monthlyOperatingCost"
+                type="number"
+                min="0"
+                step="100"
+                value={monthlyOperatingCost}
+                onChange={(e) => setMonthlyOperatingCost(Number(e.target.value))}
+                placeholder="0"
+              />
+              <p className="text-xs text-neutral-400">Se usa para calcular el punto de equilibrio en el dashboard</p>
             </div>
             <Button type="submit" disabled={saving}>
               <Save className="mr-2 h-4 w-4" />
