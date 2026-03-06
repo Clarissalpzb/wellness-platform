@@ -43,8 +43,10 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
   const inviteUrl = `${baseUrl}/invitacion?token=${token}`;
 
-  await resend.emails.send({
-    from: "Athletica <no-reply@athletica.app>",
+  const fromAddress = process.env.RESEND_FROM_EMAIL || "Athletica <onboarding@resend.dev>";
+
+  const { error } = await resend.emails.send({
+    from: fromAddress,
     to: user.email,
     subject: "Estás invitado a unirte al equipo",
     html: `
@@ -58,6 +60,11 @@ export async function POST(req: NextRequest) {
       <p style="color: #6b7280; font-size: 14px;">Este enlace expira en 48 horas.</p>
     `,
   });
+
+  if (error) {
+    console.error("Resend error:", error);
+    return badRequest(error.message || "Error al enviar el email");
+  }
 
   return success({ sent: true });
 }
