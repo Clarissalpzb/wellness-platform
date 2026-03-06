@@ -18,8 +18,8 @@ export async function POST(req: NextRequest) {
     return badRequest("Token expirado. Solicita una nueva invitación.");
   }
 
-  const user = await db.user.findUnique({
-    where: { email: record.identifier },
+  const user = await db.user.findFirst({
+    where: { email: { equals: record.identifier, mode: "insensitive" } },
   });
 
   if (!user) return badRequest("Usuario no encontrado");
