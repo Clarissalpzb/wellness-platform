@@ -45,25 +45,30 @@ export async function POST(req: NextRequest) {
 
   const fromAddress = process.env.RESEND_FROM_EMAIL || "Athletica <onboarding@resend.dev>";
 
-  const { error } = await resend.emails.send({
-    from: fromAddress,
-    to: user.email,
-    subject: "Estás invitado a unirte al equipo",
-    html: `
-      <h2>Hola, ${user.firstName}</h2>
-      <p>Has sido invitado a unirte al equipo. Haz clic en el siguiente enlace para crear tu contraseña y activar tu cuenta:</p>
-      <p>
-        <a href="${inviteUrl}" style="background: #22c55e; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">
-          Crear mi contraseña
-        </a>
-      </p>
-      <p style="color: #6b7280; font-size: 14px;">Este enlace expira en 48 horas.</p>
-    `,
-  });
+  try {
+    const { error } = await resend.emails.send({
+      from: fromAddress,
+      to: user.email,
+      subject: "Estás invitado a unirte al equipo",
+      html: `
+        <h2>Hola, ${user.firstName}</h2>
+        <p>Has sido invitado a unirte al equipo. Haz clic en el siguiente enlace para crear tu contraseña y activar tu cuenta:</p>
+        <p>
+          <a href="${inviteUrl}" style="background: #22c55e; color: white; padding: 10px 20px; border-radius: 8px; text-decoration: none; display: inline-block;">
+            Crear mi contraseña
+          </a>
+        </p>
+        <p style="color: #6b7280; font-size: 14px;">Este enlace expira en 48 horas.</p>
+      `,
+    });
 
-  if (error) {
-    console.error("Resend error:", error);
-    return badRequest(error.message || "Error al enviar el email");
+    if (error) {
+      console.error("Resend error:", error);
+      return badRequest(error.message || "Error al enviar el email");
+    }
+  } catch (err: any) {
+    console.error("Resend exception:", err);
+    return badRequest(err.message || "Error al enviar el email. Verifica la configuración de RESEND_API_KEY.");
   }
 
   return success({ sent: true });
