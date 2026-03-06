@@ -45,6 +45,7 @@ export async function POST(req: NextRequest) {
 
   const fromAddress = process.env.RESEND_FROM_EMAIL || "Athletica <onboarding@resend.dev>";
 
+  let emailSent = false;
   try {
     const { error } = await resend.emails.send({
       from: fromAddress,
@@ -64,12 +65,12 @@ export async function POST(req: NextRequest) {
 
     if (error) {
       console.error("Resend error:", error);
-      return badRequest(error.message || "Error al enviar el email");
+    } else {
+      emailSent = true;
     }
   } catch (err: any) {
     console.error("Resend exception:", err);
-    return badRequest(err.message || "Error al enviar el email. Verifica la configuración de RESEND_API_KEY.");
   }
 
-  return success({ sent: true });
+  return success({ sent: emailSent, inviteUrl });
 }

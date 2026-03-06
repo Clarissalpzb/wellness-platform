@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Mail, Check } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Mail, Check, Copy, Link } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -162,6 +162,8 @@ export default function EquipoPage() {
     setFormError(null);
   };
 
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+
   const handleInvite = async (userId: string, email: string) => {
     if (email.endsWith("@placeholder.local")) {
       alert("Este usuario no tiene un email real. Edita su perfil para agregar un email antes de enviar la invitación.");
@@ -174,8 +176,14 @@ export default function EquipoPage() {
         body: JSON.stringify({ userId }),
       });
       if (res.ok) {
-        setInvitedId(userId);
-        setTimeout(() => setInvitedId(null), 2000);
+        const data = await res.json();
+        if (data.sent) {
+          setInvitedId(userId);
+          setTimeout(() => setInvitedId(null), 2000);
+        } else {
+          // Email failed but we have the link — show it
+          setInviteLink(data.inviteUrl);
+        }
       } else {
         const err = await res.json().catch(() => ({}));
         alert(err.error || "Error al enviar invitación");
@@ -301,6 +309,36 @@ export default function EquipoPage() {
           </Table>
         </div>
       )}
+
+      {/* Invite link fallback dialog */}
+      <Dialog open={inviteLink !== null} onOpenChange={(open) => { if (!open) setInviteLink(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Link className="h-4 w-4" />
+              Link de Invitación
+            </DialogTitle>
+            <DialogDescription>
+              No se pudo enviar el email. Comparte este link directamente con el miembro del equipo.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex items-center gap-2">
+            <Input value={inviteLink || ""} readOnly className="text-xs" />
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                navigator.clipboard.writeText(inviteLink || "");
+                setInviteLink(null);
+                setInvitedId("copied");
+                setTimeout(() => setInvitedId(null), 2000);
+              }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="sm:max-w-md">
