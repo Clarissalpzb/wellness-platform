@@ -86,7 +86,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         nextUrl.pathname.startsWith("/pos") ||
         nextUrl.pathname.startsWith("/settings") ||
         nextUrl.pathname.startsWith("/coach") ||
-        nextUrl.pathname.startsWith("/app");
+        nextUrl.pathname.startsWith("/app") ||
+        nextUrl.pathname.startsWith("/horarios");
 
       if (isProtected && !isLoggedIn) {
         return Response.redirect(new URL("/login", nextUrl));
