@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import {
   LayoutDashboard,
   Calendar,
+  CalendarDays,
   Package,
   Users,
   UserCog,
@@ -53,6 +54,7 @@ const allNavGroups: NavGroup[] = [
     label: "Administrar",
     items: [
       { name: "Clases", href: "/clases", icon: Calendar, permission: "classes:manage" },
+      { name: "Horarios", href: "/horarios", icon: CalendarDays, permission: "classes:manage" },
       { name: "Paquetes", href: "/paquetes", icon: Package, permission: "packages:manage" },
       { name: "Equipo", href: "/equipo", icon: UserCog, permission: "staff:manage" },
       { name: "Sucursales", href: "/espacios", icon: Building2, permission: "locations:manage" },

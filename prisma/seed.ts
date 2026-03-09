@@ -229,6 +229,94 @@ async function main() {
     },
   });
 
+  // Create coach availability
+  // María: Mon-Fri 6:30-14:00 + Sat 7:00-12:00
+  await Promise.all(
+    [1, 2, 3, 4, 5].map((day) =>
+      prisma.coachAvailability.create({
+        data: { coachProfileId: coachProfile1.id, dayOfWeek: day, startTime: "06:30", endTime: "14:00" },
+      })
+    )
+  );
+  await prisma.coachAvailability.create({
+    data: { coachProfileId: coachProfile1.id, dayOfWeek: 6, startTime: "07:00", endTime: "12:00" },
+  });
+
+  // Carlos: Mon-Fri 7:00-10:00 & 17:00-21:00, Sat 8:00-13:00
+  await Promise.all(
+    [1, 2, 3, 4, 5].flatMap((day) => [
+      prisma.coachAvailability.create({
+        data: { coachProfileId: coachProfile2.id, dayOfWeek: day, startTime: "07:00", endTime: "10:00" },
+      }),
+      prisma.coachAvailability.create({
+        data: { coachProfileId: coachProfile2.id, dayOfWeek: day, startTime: "17:00", endTime: "21:00" },
+      }),
+    ])
+  );
+  await prisma.coachAvailability.create({
+    data: { coachProfileId: coachProfile2.id, dayOfWeek: 6, startTime: "08:00", endTime: "13:00" },
+  });
+
+  // Create coach compensation records (links coaches to classes)
+  await Promise.all([
+    // María teaches Yoga, Pilates, Meditación
+    prisma.coachCompensation.create({
+      data: { coachProfileId: coachProfile1.id, type: "FIXED_PER_CLASS", amount: 500, classId: yogaFlow.id },
+    }),
+    prisma.coachCompensation.create({
+      data: { coachProfileId: coachProfile1.id, type: "FIXED_PER_CLASS", amount: 450, classId: pilates.id },
+    }),
+    prisma.coachCompensation.create({
+      data: { coachProfileId: coachProfile1.id, type: "FIXED_PER_CLASS", amount: 400, classId: meditation.id },
+    }),
+    // Carlos teaches HIIT, CrossFit
+    prisma.coachCompensation.create({
+      data: { coachProfileId: coachProfile2.id, type: "FIXED_PER_CLASS", amount: 600, classId: hiit.id },
+    }),
+    prisma.coachCompensation.create({
+      data: { coachProfileId: coachProfile2.id, type: "FIXED_PER_CLASS", amount: 650, classId: crossfit.id },
+    }),
+  ]);
+
+  // Create 2 unscheduled classes (for auto-suggest testing)
+  const barre = await prisma.class.create({
+    data: {
+      organizationId: org.id,
+      name: "Barre",
+      description: "Clase de barre que combina ballet, pilates y yoga.",
+      color: "#ec4899",
+      duration: 45,
+      maxCapacity: 12,
+      waitlistMax: 3,
+      category: "Pilates",
+      level: "Todos",
+    },
+  });
+
+  const boxeoFitness = await prisma.class.create({
+    data: {
+      organizationId: org.id,
+      name: "Boxeo Fitness",
+      description: "Entrenamiento de boxeo enfocado en fitness y cardio.",
+      color: "#06b6d4",
+      duration: 50,
+      maxCapacity: 15,
+      waitlistMax: 5,
+      category: "Cardio",
+      level: "Intermedio",
+    },
+  });
+
+  // Link unscheduled classes to coaches via compensation
+  await Promise.all([
+    prisma.coachCompensation.create({
+      data: { coachProfileId: coachProfile1.id, type: "FIXED_PER_CLASS", amount: 450, classId: barre.id },
+    }),
+    prisma.coachCompensation.create({
+      data: { coachProfileId: coachProfile2.id, type: "FIXED_PER_CLASS", amount: 550, classId: boxeoFitness.id },
+    }),
+  ]);
+
   // Create schedules (recurring weekly)
   const schedules = await Promise.all([
     // Yoga Flow - Mon/Wed/Fri 7:00 & 17:00
@@ -389,7 +477,7 @@ async function main() {
   console.log(`Owner: ${owner.email} / password123`);
   console.log(`Coaches: ${coach1.email}, ${coach2.email}`);
   console.log(`Clients: ${clients.length} created`);
-  console.log(`Classes: 5, Schedules: ${schedules.length}`);
+  console.log(`Classes: 7 (5 scheduled + 2 unscheduled), Schedules: ${schedules.length}`);
 }
 
 main()

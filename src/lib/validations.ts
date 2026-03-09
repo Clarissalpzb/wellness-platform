@@ -105,6 +105,11 @@ export const productSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+export const batchScheduleSchema = z.object({
+  schedules: z.array(scheduleSchema).min(1, "Al menos un horario requerido"),
+});
+
+export type BatchScheduleInput = z.infer<typeof batchScheduleSchema>;
 export type CampaignInput = z.infer<typeof campaignSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;
 export type SpaceInput = z.infer<typeof spaceSchema>;
