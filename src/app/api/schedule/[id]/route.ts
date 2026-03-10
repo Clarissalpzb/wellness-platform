@@ -23,8 +23,17 @@ export async function DELETE(
     return notFound("Horario no encontrado");
   }
 
-  await db.classSchedule.delete({ where: { id } });
-  return success({ deleted: true });
+  try {
+    await db.$transaction([
+      db.waitlistEntry.deleteMany({ where: { classScheduleId: id } }),
+      db.booking.deleteMany({ where: { classScheduleId: id } }),
+      db.classSchedule.delete({ where: { id } }),
+    ]);
+    return success({ deleted: true });
+  } catch (e) {
+    console.error("Error deleting schedule:", e);
+    return badRequest("No se pudo eliminar el horario");
+  }
 }
 
 export async function PUT(
