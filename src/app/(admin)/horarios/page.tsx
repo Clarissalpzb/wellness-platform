@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -150,6 +150,14 @@ function snapTo15(minutes: number): number {
 }
 
 export default function HorariosPage() {
+  return (
+    <Suspense>
+      <HorariosContent />
+    </Suspense>
+  );
+}
+
+function HorariosContent() {
   const searchParams = useSearchParams();
   const highlightClassId = searchParams.get("clase") || null;
 
