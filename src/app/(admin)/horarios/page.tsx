@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, Copy, CalendarPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -192,11 +192,6 @@ function HorariosContent() {
   // Bulk schedule dialog state
   const [showBulkDialog, setShowBulkDialog] = useState(false);
 
-  // Replicate week state
-  const [showReplicate, setShowReplicate] = useState(false);
-  const [replicateDate, setReplicateDate] = useState("");
-  const [replicating, setReplicating] = useState(false);
-  const [replicateMsg, setReplicateMsg] = useState<string | null>(null);
 
   const fetchSchedules = useCallback(async () => {
     setLoading(true);
@@ -332,31 +327,6 @@ function HorariosContent() {
     const snapped = snapTo15(rawMinutes);
     const time = minutesToTime(Math.max(HOUR_START * 60, Math.min(snapped, HOUR_END * 60 - 15)));
     openCreateDialog(dow, time);
-  };
-
-  // Replicate week handler
-  const handleReplicate = async () => {
-    if (!replicateDate) return;
-    setReplicating(true);
-    setReplicateMsg(null);
-    try {
-      const res = await fetch("/api/schedule/replicate", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetWeekStart: replicateDate }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setReplicateMsg(data.message || `Se crearon ${data.created} horarios`);
-        fetchSchedules();
-      } else {
-        setReplicateMsg(data.error || "Error al replicar");
-      }
-    } catch {
-      setReplicateMsg("Error de conexión");
-    } finally {
-      setReplicating(false);
-    }
   };
 
   // Auto-suggest handlers
@@ -503,11 +473,7 @@ function HorariosContent() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => setShowBulkDialog(true)}>
             <CalendarPlus className="h-4 w-4 mr-1" />
-            Agendar en Bloque
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => { setShowReplicate(true); setReplicateMsg(null); setReplicateDate(""); }}>
-            <Copy className="h-4 w-4 mr-1" />
-            Replicar Semana
+            Agendar Horario
           </Button>
           <Button variant="outline" size="sm" onClick={prevWeek}>
             <ChevronLeft className="h-4 w-4" />
@@ -949,39 +915,6 @@ function HorariosContent() {
         onClose={() => setShowBulkDialog(false)}
       />
 
-      {/* Replicate week dialog */}
-      <Dialog open={showReplicate} onOpenChange={(open) => { if (!open) setShowReplicate(false); }}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Replicar Semana</DialogTitle>
-            <DialogDescription>
-              Copia todos los horarios recurrentes a una semana específica
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <Label>Lunes de la semana objetivo</Label>
-              <Input
-                type="date"
-                value={replicateDate}
-                onChange={(e) => setReplicateDate(e.target.value)}
-              />
-              <p className="text-xs text-neutral-400">Selecciona el lunes de la semana donde quieres replicar los horarios</p>
-            </div>
-            {replicateMsg && (
-              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700">
-                {replicateMsg}
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReplicate(false)}>Cancelar</Button>
-            <Button onClick={handleReplicate} disabled={!replicateDate || replicating}>
-              {replicating ? "Replicando..." : "Replicar"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
