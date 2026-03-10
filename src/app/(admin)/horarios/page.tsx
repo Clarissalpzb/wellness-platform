@@ -1,11 +1,22 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { ScheduleDialog, type ScheduleDialogData } from "@/components/schedule/schedule-dialog";
 
 const HOUR_START = 6;
 const HOUR_END = 21;
@@ -18,6 +29,7 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
 interface ScheduleItem {
   id: string;
+  classId: string;
   startTime: string;
   endTime: string;
   className: string;
@@ -26,7 +38,9 @@ interface ScheduleItem {
   capacity: number;
   category: string | null;
   level: string | null;
+  locationId: string | null;
   location: string;
+  spaceId: string | null;
   space: string;
   coach: string;
   coachProfileId: string | null;
@@ -63,6 +77,21 @@ interface UnschedulableClass {
 interface LocationItem {
   id: string;
   name: string;
+  spaces: { id: string; name: string }[];
+}
+
+interface ClassOption {
+  id: string;
+  name: string;
+  duration: number;
+  color: string;
+}
+
+interface CoachOption {
+  id: string;
+  firstName: string;
+  lastName: string;
+  coachProfileId: string;
 }
 
 function getMonday(d: Date): Date {
@@ -98,6 +127,12 @@ function timeToMinutes(time: string): number {
   return h * 60 + m;
 }
 
+function minutesToTime(minutes: number): string {
+  const h = Math.floor(minutes / 60) % 24;
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 function formatTimeDisplay(time: string): string {
   const [hours, minutes] = time.split(":");
   const h = parseInt(hours);
@@ -110,7 +145,14 @@ function getSuggestionDuration(s: ScheduleSuggestion): number {
   return timeToMinutes(s.endTime) - timeToMinutes(s.startTime);
 }
 
+function snapTo15(minutes: number): number {
+  return Math.round(minutes / 15) * 15;
+}
+
 export default function HorariosPage() {
+  const searchParams = useSearchParams();
+  const highlightClassId = searchParams.get("clase") || null;
+
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [schedules, setSchedules] = useState<Record<number, ScheduleItem[]>>({});
   const [loading, setLoading] = useState(true);
@@ -128,6 +170,21 @@ export default function HorariosPage() {
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+
+  // Schedule dialog state
+  const [showScheduleDialog, setShowScheduleDialog] = useState(false);
+  const [scheduleDialogMode, setScheduleDialogMode] = useState<"create" | "edit">("create");
+  const [scheduleDialogData, setScheduleDialogData] = useState<ScheduleDialogData | undefined>(undefined);
+
+  // Data for schedule dialog
+  const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
+  const [coachOptions, setCoachOptions] = useState<CoachOption[]>([]);
+
+  // Replicate week state
+  const [showReplicate, setShowReplicate] = useState(false);
+  const [replicateDate, setReplicateDate] = useState("");
+  const [replicating, setReplicating] = useState(false);
+  const [replicateMsg, setReplicateMsg] = useState<string | null>(null);
 
   const fetchSchedules = useCallback(async () => {
     setLoading(true);
@@ -160,6 +217,36 @@ export default function HorariosPage() {
       .catch(() => setLocations([]));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch classes and coaches on mount (for schedule dialog)
+  useEffect(() => {
+    fetch("/api/classes")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: any[]) => {
+        setClassOptions(
+          data
+            .filter((c: any) => c.isActive)
+            .map((c: any) => ({ id: c.id, name: c.name, duration: c.duration, color: c.color }))
+        );
+      })
+      .catch(() => setClassOptions([]));
+
+    fetch("/api/staff")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((staff: any[]) => {
+        setCoachOptions(
+          staff
+            .filter((s: any) => s.coachProfile)
+            .map((s: any) => ({
+              id: s.id,
+              firstName: s.firstName,
+              lastName: s.lastName,
+              coachProfileId: s.coachProfile.id,
+            }))
+        );
+      })
+      .catch(() => setCoachOptions([]));
+  }, []);
+
   useEffect(() => {
     if (showAvailability && !coachData) {
       fetch("/api/coach/availability/all")
@@ -182,6 +269,83 @@ export default function HorariosPage() {
   };
 
   const goToday = () => setWeekStart(getMonday(new Date()));
+
+  // Schedule dialog handlers
+  const openCreateDialog = (dayOfWeek: number, startTime?: string) => {
+    setScheduleDialogMode("create");
+    setScheduleDialogData({
+      dayOfWeek,
+      startTime: startTime || "",
+      locationId: locations.length === 1 ? locations[0].id : "",
+    });
+    setShowScheduleDialog(true);
+  };
+
+  const openEditDialog = (item: ScheduleItem, dayOfWeek: number) => {
+    setScheduleDialogMode("edit");
+    setScheduleDialogData({
+      id: item.id,
+      classId: item.classId,
+      className: item.className,
+      dayOfWeek,
+      startTime: item.startTime,
+      endTime: item.endTime,
+      locationId: item.locationId || "",
+      spaceId: item.spaceId,
+      coachProfileId: item.coachProfileId,
+      duration: item.duration,
+    });
+    setShowScheduleDialog(true);
+  };
+
+  const handleScheduleSaved = () => {
+    setShowScheduleDialog(false);
+    setScheduleDialogData(undefined);
+    fetchSchedules();
+  };
+
+  const handleScheduleClose = () => {
+    setShowScheduleDialog(false);
+    setScheduleDialogData(undefined);
+  };
+
+  // Click on empty calendar space
+  const handleColumnClick = (dow: number, e: React.MouseEvent<HTMLDivElement>) => {
+    // Don't open dialog if clicking on a schedule block
+    if ((e.target as HTMLElement).closest("[data-schedule-block]")) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const yOffset = e.clientY - rect.top;
+    const rawMinutes = HOUR_START * 60 + (yOffset / ROW_HEIGHT) * 60;
+    const snapped = snapTo15(rawMinutes);
+    const time = minutesToTime(Math.max(HOUR_START * 60, Math.min(snapped, HOUR_END * 60 - 15)));
+    openCreateDialog(dow, time);
+  };
+
+  // Replicate week handler
+  const handleReplicate = async () => {
+    if (!replicateDate) return;
+    setReplicating(true);
+    setReplicateMsg(null);
+    try {
+      const res = await fetch("/api/schedule/replicate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetWeekStart: replicateDate }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReplicateMsg(data.message || `Se crearon ${data.created} horarios`);
+        fetchSchedules();
+      } else {
+        setReplicateMsg(data.error || "Error al replicar");
+      }
+    } catch {
+      setReplicateMsg("Error de conexión");
+    } finally {
+      setReplicating(false);
+    }
+  };
 
   // Auto-suggest handlers
   const handleAutoSuggest = async () => {
@@ -287,7 +451,6 @@ export default function HorariosPage() {
       });
 
       if (res.ok) {
-        // Clear suggestions and refresh
         setSuggestions([]);
         setUnschedulable([]);
         setAcceptedIds(new Set());
@@ -326,6 +489,10 @@ export default function HorariosPage() {
           <p className="text-sm text-neutral-500">Vista general de horarios y disponibilidad</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => { setShowReplicate(true); setReplicateMsg(null); setReplicateDate(""); }}>
+            <Copy className="h-4 w-4 mr-1" />
+            Replicar Semana
+          </Button>
           <Button variant="outline" size="sm" onClick={prevWeek}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -469,7 +636,7 @@ export default function HorariosPage() {
             return (
               <div
                 key={dow}
-                className={`border-b border-neutral-200 p-2 text-center text-sm font-medium ${
+                className={`border-b border-neutral-200 p-2 text-center text-sm font-medium relative group ${
                   i < 6 ? "border-r" : ""
                 } ${isToday ? "bg-primary-50" : "bg-neutral-50"}`}
               >
@@ -485,6 +652,14 @@ export default function HorariosPage() {
                 >
                   {d.getDate()}
                 </div>
+                {/* "+" button on day header */}
+                <button
+                  onClick={() => openCreateDialog(dow)}
+                  className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-neutral-200"
+                  title="Agregar horario"
+                >
+                  <Plus className="h-3.5 w-3.5 text-neutral-500" />
+                </button>
               </div>
             );
           })}
@@ -531,16 +706,17 @@ export default function HorariosPage() {
               return (
                 <div
                   key={dow}
-                  className={`relative ${colIdx < 6 ? "border-r border-neutral-200" : ""} ${
+                  className={`relative cursor-crosshair ${colIdx < 6 ? "border-r border-neutral-200" : ""} ${
                     isToday ? "bg-primary-50/30" : ""
                   }`}
                   style={{ height: TOTAL_HOURS * ROW_HEIGHT }}
+                  onClick={(e) => handleColumnClick(dow, e)}
                 >
                   {/* Horizontal gridlines */}
                   {Array.from({ length: TOTAL_HOURS }, (_, i) => (
                     <div
                       key={i}
-                      className="absolute w-full border-b border-neutral-100"
+                      className="absolute w-full border-b border-neutral-100 pointer-events-none"
                       style={{ top: i * ROW_HEIGHT }}
                     />
                   ))}
@@ -555,7 +731,7 @@ export default function HorariosPage() {
                     return (
                       <div
                         key={`avail-${aIdx}`}
-                        className="absolute left-0 right-0 opacity-15 z-0"
+                        className="absolute left-0 right-0 opacity-15 z-0 pointer-events-none"
                         style={{
                           top: Math.max(0, topOffset),
                           height: Math.min(height, TOTAL_HOURS * ROW_HEIGHT - topOffset),
@@ -571,16 +747,25 @@ export default function HorariosPage() {
                     const topOffset = (startMin - HOUR_START * 60) * (ROW_HEIGHT / 60);
                     const height = item.duration * (ROW_HEIGHT / 60);
                     const isShort = item.duration < 30;
+                    const isHighlighted = highlightClassId === item.classId;
 
                     return (
                       <div
                         key={item.id}
-                        className="absolute left-1 right-1 rounded-md shadow-sm z-10 overflow-hidden cursor-default px-1.5 py-1 text-white"
+                        data-schedule-block
+                        className={`absolute left-1 right-1 rounded-md shadow-sm z-10 overflow-hidden cursor-pointer px-1.5 py-1 text-white transition-shadow hover:shadow-md ${
+                          isHighlighted ? "ring-2 ring-offset-1 ring-yellow-400" : ""
+                        }`}
                         style={{
                           top: topOffset,
                           height,
                           backgroundColor: item.classColor,
                           opacity: 0.9,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTooltip(null);
+                          openEditDialog(item, dow);
                         }}
                         onMouseEnter={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
@@ -617,6 +802,7 @@ export default function HorariosPage() {
                     return (
                       <div
                         key={`sug-${sug.classId}`}
+                        data-schedule-block
                         className={`absolute left-1 right-1 rounded-md z-20 overflow-hidden px-1.5 py-1 border-2 border-dashed ${
                           isAccepted
                             ? "border-emerald-400 bg-emerald-50"
@@ -647,7 +833,7 @@ export default function HorariosPage() {
                         {/* Accept/Reject buttons */}
                         <div className="absolute top-0.5 right-0.5 flex gap-0.5">
                           <button
-                            onClick={() => toggleAccept(sug.classId)}
+                            onClick={(e) => { e.stopPropagation(); toggleAccept(sug.classId); }}
                             className={`p-0.5 rounded ${
                               isAccepted
                                 ? "bg-emerald-500 text-white"
@@ -658,7 +844,7 @@ export default function HorariosPage() {
                             <Check className="h-3 w-3" />
                           </button>
                           <button
-                            onClick={() => toggleReject(sug.classId)}
+                            onClick={(e) => { e.stopPropagation(); toggleReject(sug.classId); }}
                             className="p-0.5 rounded bg-white/90 text-red-500 hover:bg-red-100"
                             title="Rechazar"
                           >
@@ -725,6 +911,52 @@ export default function HorariosPage() {
       {loading && (
         <div className="text-center text-sm text-neutral-500 py-8">Cargando horarios...</div>
       )}
+
+      {/* Schedule create/edit dialog */}
+      <ScheduleDialog
+        open={showScheduleDialog}
+        mode={scheduleDialogMode}
+        initialData={scheduleDialogData}
+        classes={classOptions}
+        locations={locations}
+        coaches={coachOptions}
+        onSaved={handleScheduleSaved}
+        onClose={handleScheduleClose}
+      />
+
+      {/* Replicate week dialog */}
+      <Dialog open={showReplicate} onOpenChange={(open) => { if (!open) setShowReplicate(false); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Replicar Semana</DialogTitle>
+            <DialogDescription>
+              Copia todos los horarios recurrentes a una semana específica
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Lunes de la semana objetivo</Label>
+              <Input
+                type="date"
+                value={replicateDate}
+                onChange={(e) => setReplicateDate(e.target.value)}
+              />
+              <p className="text-xs text-neutral-400">Selecciona el lunes de la semana donde quieres replicar los horarios</p>
+            </div>
+            {replicateMsg && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-3 text-sm text-blue-700">
+                {replicateMsg}
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowReplicate(false)}>Cancelar</Button>
+            <Button onClick={handleReplicate} disabled={!replicateDate || replicating}>
+              {replicating ? "Replicando..." : "Replicar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

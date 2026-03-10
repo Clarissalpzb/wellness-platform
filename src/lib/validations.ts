@@ -105,10 +105,20 @@ export const productSchema = z.object({
   isActive: z.boolean().default(true),
 });
 
+export const scheduleUpdateSchema = z.object({
+  dayOfWeek: z.coerce.number().min(0).max(6).optional(),
+  startTime: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:mm").optional(),
+  endTime: z.string().regex(/^\d{2}:\d{2}$/, "Formato HH:mm").optional(),
+  locationId: z.string().min(1).optional(),
+  spaceId: z.string().optional(),
+  coachProfileId: z.string().optional(),
+});
+
 export const batchScheduleSchema = z.object({
   schedules: z.array(scheduleSchema).min(1, "Al menos un horario requerido"),
 });
 
+export type ScheduleUpdateInput = z.infer<typeof scheduleUpdateSchema>;
 export type BatchScheduleInput = z.infer<typeof batchScheduleSchema>;
 export type CampaignInput = z.infer<typeof campaignSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;

@@ -73,6 +73,7 @@ export async function GET(req: NextRequest) {
   for (const s of schedules) {
     const item = {
       id: s.id,
+      classId: s.classId,
       startTime: s.startTime,
       endTime: s.endTime,
       className: s.class.name,
@@ -81,7 +82,9 @@ export async function GET(req: NextRequest) {
       capacity: s.class.maxCapacity,
       category: s.class.category,
       level: s.class.level,
+      locationId: s.locationId,
       location: s.location?.name ?? "",
+      spaceId: s.spaceId,
       space: s.space?.name ?? "",
       coach: s.coachProfile
         ? `${s.coachProfile.user.firstName} ${s.coachProfile.user.lastName}`
