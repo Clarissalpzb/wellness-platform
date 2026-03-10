@@ -459,6 +459,26 @@ export default function ClasesPage() {
                   {cls.isActive ? "Activa" : "Inactiva"}
                 </Badge>
               </div>
+              {cls.schedules?.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {cls.schedules.slice(0, 3).map((s: any) => {
+                    const coachName = s.coachProfile?.user
+                      ? `${s.coachProfile.user.firstName} ${s.coachProfile.user.lastName}`
+                      : null;
+                    return (
+                      <div key={s.id} className="flex items-center gap-2 text-xs text-neutral-500">
+                        <Clock className="h-3 w-3 text-neutral-400 shrink-0" />
+                        <span className="font-medium text-neutral-600">{DAY_NAMES[s.dayOfWeek]?.slice(0, 3)}</span>
+                        <span>{s.startTime} – {s.endTime}</span>
+                        {coachName && <span className="text-neutral-400">· {coachName}</span>}
+                      </div>
+                    );
+                  })}
+                  {cls.schedules.length > 3 && (
+                    <p className="text-xs text-neutral-400">+{cls.schedules.length - 3} más</p>
+                  )}
+                </div>
+              )}
               <div className="mt-3 flex items-center gap-2">
                 <Badge variant="outline">{cls.level}</Badge>
                 <span className="text-xs text-neutral-400">
