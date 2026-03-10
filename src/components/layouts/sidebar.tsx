@@ -57,6 +57,7 @@ const allNavGroups: NavGroup[] = [
       { name: "Horarios", href: "/horarios", icon: CalendarDays, permission: "classes:manage" },
       { name: "Paquetes", href: "/paquetes", icon: Package, permission: "packages:manage" },
       { name: "Equipo", href: "/equipo", icon: UserCog, permission: "staff:manage" },
+      { name: "Compensación", href: "/compensacion", icon: DollarSign, permission: "compensation:view_all" },
       { name: "Sucursales", href: "/espacios", icon: Building2, permission: "locations:manage" },
       { name: "Usuarios", href: "/usuarios", icon: Users, permission: "users:view" },
       { name: "Check-in", href: "/checkin", icon: UserCheck, permission: "users:checkin" },

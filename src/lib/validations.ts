@@ -118,9 +118,17 @@ export const batchScheduleSchema = z.object({
   schedules: z.array(scheduleSchema).min(1, "Al menos un horario requerido"),
 });
 
+export const coachCompensationSchema = z.object({
+  coachProfileId: z.string().min(1, "Selecciona un coach"),
+  type: z.enum(["FIXED_PER_CLASS", "PER_ATTENDEE", "PERCENTAGE_REVENUE", "HOURLY"]),
+  amount: z.coerce.number().min(0, "El monto debe ser positivo"),
+  classId: z.string().optional(),
+});
+
 export type ScheduleUpdateInput = z.infer<typeof scheduleUpdateSchema>;
 export type BatchScheduleInput = z.infer<typeof batchScheduleSchema>;
 export type CampaignInput = z.infer<typeof campaignSchema>;
 export type LocationInput = z.infer<typeof locationSchema>;
 export type SpaceInput = z.infer<typeof spaceSchema>;
 export type ProductInput = z.infer<typeof productSchema>;
+export type CoachCompensationInput = z.infer<typeof coachCompensationSchema>;
