@@ -94,6 +94,8 @@ export function ScheduleDialog({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [availableCoaches, setAvailableCoaches] = useState<{ coachProfileId: string; name: string }[] | null>(null);
+  const [loadingCoaches, setLoadingCoaches] = useState(false);
 
   useEffect(() => {
     if (open && initialData) {
@@ -104,6 +106,7 @@ export function ScheduleDialog({
       setSpaceId(initialData.spaceId || "");
       setCoachProfileId(initialData.coachProfileId || "");
       setError(null);
+      setAvailableCoaches(null);
     } else if (open) {
       setClassId("");
       setDayOfWeek(null);
@@ -112,12 +115,47 @@ export function ScheduleDialog({
       setSpaceId("");
       setCoachProfileId("");
       setError(null);
+      setAvailableCoaches(null);
     }
   }, [open, initialData, locations]);
 
   const selectedClass = classes.find((c) => c.id === classId);
   const duration = selectedClass?.duration || initialData?.duration || 60;
   const endTime = startTime ? computeEndTime(startTime, duration) : "";
+
+  // Fetch available coaches when class + day + time are set
+  const resolvedClassId = mode === "edit" ? initialData?.classId : classId;
+  useEffect(() => {
+    if (!resolvedClassId || dayOfWeek === null || !startTime) {
+      setAvailableCoaches(null);
+      return;
+    }
+
+    let cancelled = false;
+    setLoadingCoaches(true);
+    const params = new URLSearchParams({
+      classId: resolvedClassId,
+      dayOfWeek: String(dayOfWeek),
+      startTime,
+      duration: String(duration),
+    });
+
+    fetch(`/api/schedule/available-coaches?${params}`)
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data) => {
+        if (!cancelled) {
+          setAvailableCoaches(data);
+          // Auto-select if only one coach available and no coach selected yet
+          if (data.length === 1 && !coachProfileId) {
+            setCoachProfileId(data[0].coachProfileId);
+          }
+        }
+      })
+      .catch(() => { if (!cancelled) setAvailableCoaches(null); })
+      .finally(() => { if (!cancelled) setLoadingCoaches(false); });
+
+    return () => { cancelled = true; };
+  }, [resolvedClassId, dayOfWeek, startTime, duration]); // eslint-disable-line react-hooks/exhaustive-deps
   const selectedLocation = locations.find((l) => l.id === locationId);
   const filteredSpaces = selectedLocation?.spaces ?? [];
 
@@ -144,7 +182,7 @@ export function ScheduleDialog({
             endTime,
             locationId,
             spaceId: spaceId || undefined,
-            coachProfileId: coachProfileId || undefined,
+            coachProfileId: coachProfileId && coachProfileId !== "__none" ? coachProfileId : undefined,
             isRecurring: true,
           }),
         });
@@ -162,7 +200,7 @@ export function ScheduleDialog({
         }
         if (locationId !== (initialData?.locationId || "")) body.locationId = locationId;
         if (spaceId !== (initialData?.spaceId || "")) body.spaceId = spaceId || "";
-        if (coachProfileId !== (initialData?.coachProfileId || "")) body.coachProfileId = coachProfileId || "";
+        if (coachProfileId !== (initialData?.coachProfileId || "")) body.coachProfileId = coachProfileId && coachProfileId !== "__none" ? coachProfileId : "";
 
         const res = await fetch(`/api/schedule/${initialData?.id}`, {
           method: "PUT",
@@ -325,19 +363,48 @@ export function ScheduleDialog({
 
           {/* Coach */}
           <div className="space-y-2">
-            <Label>Instructor</Label>
-            <Select value={coachProfileId} onValueChange={setCoachProfileId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Opcional" />
-              </SelectTrigger>
-              <SelectContent>
-                {coaches.map((c) => (
-                  <SelectItem key={c.coachProfileId} value={c.coachProfileId}>
-                    {c.firstName} {c.lastName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Label>
+              Instructor
+              {loadingCoaches && (
+                <Loader2 className="inline h-3 w-3 ml-1 animate-spin text-neutral-400" />
+              )}
+            </Label>
+            {availableCoaches !== null && !loadingCoaches ? (
+              <>
+                <Select value={coachProfileId} onValueChange={setCoachProfileId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Sin coach (asignar después)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none">Sin coach (asignar después)</SelectItem>
+                    {availableCoaches.map((c) => (
+                      <SelectItem key={c.coachProfileId} value={c.coachProfileId}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {availableCoaches.length === 0 && (
+                  <p className="text-xs text-amber-600">
+                    No hay coaches disponibles para este horario. Se puede asignar después.
+                  </p>
+                )}
+              </>
+            ) : (
+              <Select value={coachProfileId} onValueChange={setCoachProfileId}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona clase, día y hora primero" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none">Sin coach (asignar después)</SelectItem>
+                  {coaches.map((c) => (
+                    <SelectItem key={c.coachProfileId} value={c.coachProfileId}>
+                      {c.firstName} {c.lastName}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         </div>
 
