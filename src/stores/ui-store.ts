@@ -10,7 +10,7 @@ interface UIState {
 }
 
 export const useUIStore = create<UIState>((set) => ({
-  sidebarOpen: true,
+  sidebarOpen: false,
   insightPanelOpen: false,
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
   toggleInsightPanel: () => set((state) => ({ insightPanelOpen: !state.insightPanelOpen })),

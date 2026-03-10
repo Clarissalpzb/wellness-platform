@@ -27,6 +27,8 @@ import { cn } from "@/lib/utils";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { hasPermission, type Permission } from "@/lib/permissions";
 import { type Role } from "@prisma/client";
+import { useUIStore } from "@/stores/ui-store";
+import { X } from "lucide-react";
 
 interface NavItem {
   name: string;
@@ -78,6 +80,7 @@ const allNavGroups: NavGroup[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
+  const { sidebarOpen, setSidebarOpen } = useUIStore();
 
   const role = (session?.user as any)?.role as Role | undefined;
 
@@ -94,13 +97,21 @@ export function Sidebar() {
   // Show settings link only for users with settings:manage
   const showSettings = role && hasPermission(role, "settings:manage");
 
-  return (
-    <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-sidebar-bg text-sidebar-text border-r border-neutral-800">
-      <div className="flex items-center gap-2 px-6 py-5 border-b border-neutral-800">
-        <div className="h-8 w-8 rounded-lg bg-primary-500 flex items-center justify-center">
-          <span className="text-white font-bold text-sm">A</span>
+  const navContent = (
+    <>
+      <div className="flex items-center justify-between px-6 py-5 border-b border-neutral-800">
+        <div className="flex items-center gap-2">
+          <div className="h-8 w-8 rounded-lg bg-primary-500 flex items-center justify-center">
+            <span className="text-white font-bold text-sm">A</span>
+          </div>
+          <span className="text-white font-semibold text-lg">Athletica</span>
         </div>
-        <span className="text-white font-semibold text-lg">Athletica</span>
+        <button
+          onClick={() => setSidebarOpen(false)}
+          className="lg:hidden text-neutral-400 hover:text-white"
+        >
+          <X className="h-5 w-5" />
+        </button>
       </div>
 
       <ScrollArea className="flex-1 py-4">
@@ -117,6 +128,7 @@ export function Sidebar() {
                     <li key={item.href}>
                       <Link
                         href={item.href}
+                        onClick={() => setSidebarOpen(false)}
                         className={cn(
                           "flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                           isActive
@@ -140,6 +152,7 @@ export function Sidebar() {
         <div className="p-4 border-t border-neutral-800">
           <Link
             href="/settings"
+            onClick={() => setSidebarOpen(false)}
             className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-sidebar-text hover:bg-white/5 hover:text-white transition-colors"
           >
             <Settings className="h-4 w-4" />
@@ -147,6 +160,36 @@ export function Sidebar() {
           </Link>
         </div>
       )}
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Desktop sidebar */}
+      <aside className="hidden lg:flex lg:flex-col lg:w-64 bg-sidebar-bg text-sidebar-text border-r border-neutral-800">
+        {navContent}
+      </aside>
+
+      {/* Mobile sidebar overlay */}
+      <div
+        className={cn(
+          "fixed inset-0 z-50 lg:hidden transition-opacity duration-200",
+          sidebarOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+        )}
+      >
+        <div
+          className="absolute inset-0 bg-black/50"
+          onClick={() => setSidebarOpen(false)}
+        />
+        <aside
+          className={cn(
+            "absolute inset-y-0 left-0 w-64 flex flex-col bg-sidebar-bg text-sidebar-text border-r border-neutral-800 transition-transform duration-200",
+            sidebarOpen ? "translate-x-0" : "-translate-x-full"
+          )}
+        >
+          {navContent}
+        </aside>
+      </div>
+    </>
   );
 }

@@ -16,7 +16,7 @@ import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 
 export function Topbar() {
-  const { toggleSidebar, toggleInsightPanel } = useUIStore();
+  const { setSidebarOpen, toggleInsightPanel } = useUIStore();
   const { data: session } = useSession();
 
   const userName = session?.user?.name || "Usuario";
@@ -35,7 +35,7 @@ export function Topbar() {
           variant="ghost"
           size="icon"
           className="lg:hidden"
-          onClick={toggleSidebar}
+          onClick={() => setSidebarOpen(true)}
         >
           <Menu className="h-5 w-5" />
         </Button>
