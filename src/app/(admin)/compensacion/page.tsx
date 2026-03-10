@@ -99,7 +99,7 @@ export default function CompensacionPage() {
       coachProfileId: formCoach,
       type: formType,
       amount: Number(formData.get("amount")),
-      classId: formClass || undefined,
+      classId: formClass && formClass !== "ALL" ? formClass : undefined,
     };
     try {
       const res = await fetch("/api/compensation", {
@@ -130,7 +130,7 @@ export default function CompensacionPage() {
       coachProfileId: formCoach || editItem.coachProfileId,
       type: formType || editItem.type,
       amount: Number(formData.get("amount")),
-      classId: formClass || undefined,
+      classId: formClass && formClass !== "ALL" ? formClass : undefined,
     };
     try {
       const res = await fetch(`/api/compensation/${editItem.id}`, {
