@@ -3,16 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { Home, Calendar, User, BarChart3, Menu, Package, Users, Clock, DollarSign, Gift } from "lucide-react";
+import { Home, Calendar, User, BarChart3, Package, Users, Clock, DollarSign, Gift } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useUIStore } from "@/stores/ui-store";
 
 const adminNavItems = [
   { name: "Inicio", href: "/dashboard", icon: Home },
   { name: "Clases", href: "/clases", icon: Calendar },
   { name: "Métricas", href: "/dashboard/operaciones", icon: BarChart3 },
   { name: "Perfil", href: "/app/perfil", icon: User },
-  { name: "Más", href: "#sidebar", icon: Menu },
 ];
 
 const coachNavItems = [
@@ -20,7 +18,6 @@ const coachNavItems = [
   { name: "Compensación", href: "/coach/compensacion", icon: DollarSign },
   { name: "Referidos", href: "/coach/referidos", icon: Gift },
   { name: "Perfil", href: "/app/perfil", icon: User },
-  { name: "Más", href: "#sidebar", icon: Menu },
 ];
 
 const clientNavItems = [
@@ -37,7 +34,6 @@ const COACH_ROLES = ["COACH"];
 export function MobileNav() {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const { setSidebarOpen } = useUIStore();
 
   const role = (session?.user as any)?.role as string | undefined;
 
@@ -54,18 +50,8 @@ export function MobileNav() {
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-neutral-200 px-2 pb-safe">
       <div className="flex items-center justify-around py-2">
         {mobileNavItems.map((item) => {
-          const isSidebarTrigger = item.href === "#sidebar";
-          const isActive = !isSidebarTrigger && (pathname === item.href || pathname.startsWith(item.href + "/"));
-          return isSidebarTrigger ? (
-            <button
-              key={item.href}
-              onClick={() => setSidebarOpen(true)}
-              className="flex flex-col items-center gap-1 px-3 py-1 rounded-lg text-xs text-neutral-500 transition-colors"
-            >
-              <item.icon className="h-5 w-5" />
-              {item.name}
-            </button>
-          ) : (
+          const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
             <Link
               key={item.href}
               href={item.href}
