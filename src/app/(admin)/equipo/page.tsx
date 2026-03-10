@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Search, MoreHorizontal, Pencil, Trash2, Mail, Check, Copy, Link } from "lucide-react";
+import { Plus, Search, MoreHorizontal, Pencil, Trash2, Mail, Check, Copy, Link, Calendar } from "lucide-react";
+import { CoachScheduleDialog } from "@/components/team/coach-schedule-dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -163,6 +164,7 @@ export default function EquipoPage() {
   };
 
   const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [scheduleCoach, setScheduleCoach] = useState<any>(null);
 
   const handleInvite = async (userId: string, email: string) => {
     if (email.endsWith("@placeholder.local")) {
@@ -297,6 +299,11 @@ export default function EquipoPage() {
                           )}
                           {invitedId === member.id ? "Enviado" : "Enviar Invitación"}
                         </DropdownMenuItem>
+                        {member.coachProfile && (
+                          <DropdownMenuItem onClick={() => setScheduleCoach(member)}>
+                            <Calendar className="mr-2 h-4 w-4" /> Ver Horarios
+                          </DropdownMenuItem>
+                        )}
                         <DropdownMenuItem className="text-accent-rose" onClick={() => handleDelete(member.id)}>
                           <Trash2 className="mr-2 h-4 w-4" /> Eliminar
                         </DropdownMenuItem>
@@ -339,6 +346,12 @@ export default function EquipoPage() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <CoachScheduleDialog
+        open={scheduleCoach !== null}
+        onClose={() => setScheduleCoach(null)}
+        member={scheduleCoach}
+      />
 
       <Dialog open={dialogOpen} onOpenChange={(open) => { if (!open) closeDialog(); }}>
         <DialogContent className="sm:max-w-md">
