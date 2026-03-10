@@ -44,7 +44,6 @@ export async function POST(req: NextRequest) {
       }),
       db.coachCompensation.findMany({
         where: {
-          classId: { not: null },
           coachProfile: { user: { organizationId: orgId } },
           effectiveTo: null, // active rules only
         },
@@ -116,12 +115,17 @@ export async function POST(req: NextRequest) {
     capacity: s.capacity,
   }));
 
-  const coachClassLinks: CoachClassLink[] = compensations
-    .filter((c) => c.classId !== null)
-    .map((c) => ({
+  const activeClassIds = activeClasses.map((c) => c.id);
+  const coachClassLinks: CoachClassLink[] = compensations.flatMap((c) => {
+    if (c.classId !== null) {
+      return [{ coachProfileId: c.coachProfileId, classId: c.classId }];
+    }
+    // Global rule (classId = null) → link to ALL active classes
+    return activeClassIds.map((classId) => ({
       coachProfileId: c.coachProfileId,
-      classId: c.classId!,
+      classId,
     }));
+  });
 
   const result = autoSchedule({
     classes,

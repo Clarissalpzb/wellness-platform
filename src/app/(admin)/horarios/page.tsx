@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, Copy } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, Copy, CalendarPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -17,6 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ScheduleDialog, type ScheduleDialogData } from "@/components/schedule/schedule-dialog";
+import { BulkScheduleDialog } from "@/components/schedule/bulk-schedule-dialog";
 
 const HOUR_START = 6;
 const HOUR_END = 21;
@@ -187,6 +188,9 @@ function HorariosContent() {
   // Data for schedule dialog
   const [classOptions, setClassOptions] = useState<ClassOption[]>([]);
   const [coachOptions, setCoachOptions] = useState<CoachOption[]>([]);
+
+  // Bulk schedule dialog state
+  const [showBulkDialog, setShowBulkDialog] = useState(false);
 
   // Replicate week state
   const [showReplicate, setShowReplicate] = useState(false);
@@ -497,6 +501,10 @@ function HorariosContent() {
           <p className="text-sm text-neutral-500">Vista general de horarios y disponibilidad</p>
         </div>
         <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => setShowBulkDialog(true)}>
+            <CalendarPlus className="h-4 w-4 mr-1" />
+            Agendar en Bloque
+          </Button>
           <Button variant="outline" size="sm" onClick={() => { setShowReplicate(true); setReplicateMsg(null); setReplicateDate(""); }}>
             <Copy className="h-4 w-4 mr-1" />
             Replicar Semana
@@ -930,6 +938,15 @@ function HorariosContent() {
         coaches={coachOptions}
         onSaved={handleScheduleSaved}
         onClose={handleScheduleClose}
+      />
+
+      {/* Bulk schedule dialog */}
+      <BulkScheduleDialog
+        open={showBulkDialog}
+        classes={classOptions}
+        locations={locations}
+        onSaved={() => { setShowBulkDialog(false); fetchSchedules(); }}
+        onClose={() => setShowBulkDialog(false)}
       />
 
       {/* Replicate week dialog */}
