@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, CalendarPlus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, CalendarPlus, UserCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -165,7 +165,7 @@ function HorariosContent() {
   const [weekStart, setWeekStart] = useState(() => getMonday(new Date()));
   const [schedules, setSchedules] = useState<Record<number, ScheduleItem[]>>({});
   const [loading, setLoading] = useState(true);
-  const [showAvailability, setShowAvailability] = useState(false);
+  const [selectedCoachId, setSelectedCoachId] = useState<string>("");
   const [coachData, setCoachData] = useState<CoachAvailability[] | null>(null);
   const [tooltip, setTooltip] = useState<{ item: ScheduleItem; x: number; y: number } | null>(null);
 
@@ -255,13 +255,13 @@ function HorariosContent() {
   }, []);
 
   useEffect(() => {
-    if (showAvailability && !coachData) {
+    if (!coachData) {
       fetch("/api/coach/availability/all")
         .then((r) => (r.ok ? r.json() : []))
         .then(setCoachData)
         .catch(() => setCoachData([]));
     }
-  }, [showAvailability, coachData]);
+  }, [coachData]);
 
   const prevWeek = () => {
     const d = new Date(weekStart);
@@ -493,33 +493,24 @@ function HorariosContent() {
       {/* Controls row: availability toggle + location selector + wand button */}
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex items-center gap-2">
-          <Switch
-            id="availability-toggle"
-            checked={showAvailability}
-            onCheckedChange={setShowAvailability}
-          />
-          <Label htmlFor="availability-toggle" className="text-sm cursor-pointer">
-            Mostrar disponibilidad de coaches
-          </Label>
+          <UserCircle className="h-4 w-4 text-neutral-400" />
+          <Select value={selectedCoachId} onValueChange={setSelectedCoachId}>
+            <SelectTrigger className="w-52">
+              <SelectValue placeholder="Ver disponibilidad de..." />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none">Ninguno</SelectItem>
+              {coachData?.map((c) => (
+                <SelectItem key={c.coachProfileId} value={c.coachProfileId}>
+                  <span className="flex items-center gap-2">
+                    <span className="inline-block w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                    {c.coachName}
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        {showAvailability && coachData && coachData.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {coachData.map((c) => (
-              <Badge
-                key={c.coachProfileId}
-                variant="outline"
-                className="text-xs font-normal"
-                style={{ borderColor: c.color, color: c.color }}
-              >
-                <span
-                  className="inline-block w-2 h-2 rounded-full mr-1"
-                  style={{ backgroundColor: c.color }}
-                />
-                {c.coachName}
-              </Badge>
-            ))}
-          </div>
-        )}
 
         <div className="ml-auto flex items-center gap-2">
           {locations.length > 1 && (
@@ -670,14 +661,14 @@ function HorariosContent() {
             {/* Day columns */}
             {DAY_ORDER.map((dow, colIdx) => {
               const daySchedules = schedules[dow] || [];
-              const dayAvailability =
-                showAvailability && coachData
-                  ? coachData.flatMap((c) =>
-                      c.availability
-                        .filter((a) => a.dayOfWeek === dow)
-                        .map((a) => ({ ...a, color: c.color, coachName: c.coachName }))
-                    )
-                  : [];
+              const selectedCoach = selectedCoachId && selectedCoachId !== "none" && coachData
+                ? coachData.find((c) => c.coachProfileId === selectedCoachId)
+                : null;
+              const dayAvailability = selectedCoach
+                ? selectedCoach.availability
+                    .filter((a) => a.dayOfWeek === dow)
+                    .map((a) => ({ ...a, color: selectedCoach.color, coachName: selectedCoach.coachName }))
+                : [];
               const isToday = toISODate(columnDates[colIdx]) === toISODate(new Date());
 
               // Ghost blocks for this day
@@ -713,7 +704,7 @@ function HorariosContent() {
                     return (
                       <div
                         key={`avail-${aIdx}`}
-                        className="absolute left-0 right-0 opacity-15 z-0 pointer-events-none"
+                        className="absolute left-0 right-0 opacity-20 z-0 pointer-events-none"
                         style={{
                           top: Math.max(0, topOffset),
                           height: Math.min(height, TOTAL_HOURS * ROW_HEIGHT - topOffset),
