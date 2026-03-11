@@ -526,18 +526,6 @@ function HorariosContent() {
               ))}
             </select>
           )}
-          <Button
-            size="sm"
-            onClick={handleAutoSuggest}
-            disabled={isSuggesting || !selectedLocationId}
-          >
-            {isSuggesting ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Wand2 className="h-4 w-4 mr-1" />
-            )}
-            Auto-asignar horarios
-          </Button>
         </div>
       </div>
 
