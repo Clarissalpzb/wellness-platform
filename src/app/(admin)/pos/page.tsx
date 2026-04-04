@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Search, ShoppingBag, Plus, Minus, CreditCard, Banknote } from "lucide-react";
+import { Search, ShoppingBag, Plus, Minus, CreditCard, Banknote, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,15 +39,23 @@ export default function POSPage() {
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [lowStockCount, setLowStockCount] = useState(0);
 
   const fetchData = async () => {
     try {
-      const res = await fetch("/api/products");
-      if (res.ok) {
-        const json = await res.json();
+      const [prodRes, lowRes] = await Promise.all([
+        fetch("/api/products"),
+        fetch("/api/products/low-stock"),
+      ]);
+      if (prodRes.ok) {
+        const json = await prodRes.json();
         setProducts(json);
       } else {
         setProducts([]);
+      }
+      if (lowRes.ok) {
+        const lowData = await lowRes.json();
+        setLowStockCount(lowData.count ?? 0);
       }
     } catch (e) {
       console.error(e);
@@ -139,6 +147,14 @@ export default function POSPage() {
     <div className="flex gap-6 h-[calc(100vh-8rem)]">
       {/* Products */}
       <div className="flex-1 space-y-4 overflow-y-auto">
+        {lowStockCount > 0 && (
+          <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600" />
+            <span>
+              <strong>{lowStockCount} producto{lowStockCount > 1 ? "s" : ""}</strong> con stock bajo. Revisa el inventario.
+            </span>
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-neutral-900">Punto de Venta</h1>

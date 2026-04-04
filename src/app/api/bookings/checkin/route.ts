@@ -57,28 +57,74 @@ export async function POST(req: NextRequest) {
 
   // If this is their first check-in (the one we just updated is the only one)
   if (checkedInCount === 1) {
-    const referral = await db.referral.findUnique({
+    // Coach referral completion
+    const coachReferral = await db.referral.findUnique({
       where: { referredUserId: booking.userId },
     });
 
-    if (referral && !referral.completedAt) {
-      // Get org settings for referral bonus amount
+    if (coachReferral && !coachReferral.completedAt) {
       const org = await db.organization.findUnique({
         where: { id: orgId },
         select: { settings: true },
       });
-
       const settings = (org?.settings as Record<string, unknown>) || {};
       const bonusAmount = (typeof settings.referralBonusAmount === "number"
         ? settings.referralBonusAmount
         : 100) as number;
 
       await db.referral.update({
-        where: { id: referral.id },
-        data: {
-          completedAt: new Date(),
-          bonusAmount,
+        where: { id: coachReferral.id },
+        data: { completedAt: new Date(), bonusAmount },
+      });
+    }
+
+    // Client referral completion — reward the referrer with 1 free class
+    const clientReferral = await db.clientReferral.findUnique({
+      where: { referredUserId: booking.userId },
+    });
+
+    if (clientReferral && !clientReferral.completedAt) {
+      await db.clientReferral.update({
+        where: { id: clientReferral.id },
+        data: { completedAt: new Date() },
+      });
+
+      // Grant referrer a free class
+      let rewardPkg = await db.package.findFirst({
+        where: {
+          organizationId: orgId,
+          metadata: { path: ["isReferralReward"], equals: true },
         },
+      });
+      if (!rewardPkg) {
+        rewardPkg = await db.package.create({
+          data: {
+            organizationId: orgId,
+            name: "Clase Gratis — Referido",
+            description: "1 clase gratis por referir a un amigo.",
+            type: "DROP_IN",
+            price: 0,
+            classLimit: 1,
+            validityDays: 30,
+            isActive: true,
+            metadata: { isReferralReward: true },
+          },
+        });
+      }
+      const { addDays } = await import("date-fns");
+      await db.userPackage.create({
+        data: {
+          userId: clientReferral.referrerId,
+          packageId: rewardPkg.id,
+          classesTotal: 1,
+          classesUsed: 0,
+          expiresAt: addDays(new Date(), 30),
+          isActive: true,
+        },
+      });
+      await db.clientReferral.update({
+        where: { id: clientReferral.id },
+        data: { referrerRewarded: true },
       });
     }
   }

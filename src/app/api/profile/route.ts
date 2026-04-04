@@ -110,6 +110,35 @@ export async function GET() {
     favoriteClass = topSchedule?.class.name ?? null;
   }
 
+  // Discipline breakdown: count completed/checked-in bookings by class category
+  const allBookings = await db.booking.findMany({
+    where: { userId, status: { in: ["CHECKED_IN", "COMPLETED"] } },
+    include: {
+      classSchedule: {
+        include: { class: { select: { category: true, name: true } } },
+      },
+    },
+  });
+
+  const disciplineMap: Record<string, number> = {};
+  for (const b of allBookings) {
+    const cat = b.classSchedule.class.category ?? b.classSchedule.class.name;
+    disciplineMap[cat] = (disciplineMap[cat] ?? 0) + 1;
+  }
+  const disciplines = Object.entries(disciplineMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([name, count]) => ({ name, count }));
+
+  const totalClasses = allBookings.length;
+
+  // Milestones: fixed thresholds
+  const milestoneThresholds = [1, 5, 10, 25, 50, 100, 200, 500];
+  const milestones = milestoneThresholds.map((t) => ({
+    target: t,
+    achieved: totalClasses >= t,
+    label: `${t} clase${t !== 1 ? "s" : ""}`,
+  }));
+
   return success({
     id: user.id,
     email: user.email,
@@ -137,6 +166,9 @@ export async function GET() {
       classesThisMonth,
       streak,
       favoriteClass,
+      totalClasses,
+      disciplines,
+      milestones,
     },
   });
 }

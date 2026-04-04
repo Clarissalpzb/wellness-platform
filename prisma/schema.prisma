@@ -19,15 +19,17 @@ model Organization {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  locations  Location[]
-  users      User[]
-  classes    Class[]
-  packages   Package[]
-  products   Product[]
-  campaigns  Campaign[]
-  insights   Insight[]
-  auditLogs  AuditLog[]
-  coupons    Coupon[]
+  locations      Location[]
+  users          User[]
+  classes        Class[]
+  packages       Package[]
+  products       Product[]
+  campaigns      Campaign[]
+  insights       Insight[]
+  auditLogs      AuditLog[]
+  coupons        Coupon[]
+  announcements  Announcement[]
+  abandonedCarts AbandonedCart[]
 }
 
 model Location {
@@ -92,19 +94,27 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization     Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  accounts         Account[]
-  sessions         Session[]
-  bookings         Booking[]
-  waitlistEntries  WaitlistEntry[]
-  userPackages     UserPackage[]
-  transactions     Transaction[]
-  coachProfile     CoachProfile?
-  referral         Referral?
-  friendshipsA     Friendship[]      @relation("FriendA")
-  friendshipsB     Friendship[]      @relation("FriendB")
-  insightActions   InsightAction[]
-  auditLogs        AuditLog[]
+  hasClaimedIntroOffer Boolean  @default(false)
+  referralCode         String?  @unique  // client referral code
+
+  organization        Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  accounts            Account[]
+  sessions            Session[]
+  bookings            Booking[]
+  waitlistEntries     WaitlistEntry[]
+  userPackages        UserPackage[]
+  transactions        Transaction[]
+  coachProfile        CoachProfile?
+  referral            Referral?
+  friendshipsA        Friendship[]      @relation("FriendA")
+  friendshipsB        Friendship[]      @relation("FriendB")
+  insightActions      InsightAction[]
+  auditLogs           AuditLog[]
+  classReviews        ClassReview[]
+  recurringBookings   RecurringBooking[]
+  referralsMade       ClientReferral[]  @relation("ReferrerUser")
+  referralReceived    ClientReferral?   @relation("ReferredUser")
+  abandonedCarts      AbandonedCart[]
 
   @@index([organizationId])
   @@index([email])
@@ -237,6 +247,8 @@ model ClassSchedule {
   coachProfile CoachProfile? @relation(fields: [coachProfileId], references: [id])
   bookings     Booking[]
   waitlist     WaitlistEntry[]
+  reviews      ClassReview[]
+  recurringBookings RecurringBooking[]
 
   @@index([classId])
   @@index([locationId, dayOfWeek])
@@ -269,6 +281,7 @@ model Booking {
   user          User          @relation(fields: [userId], references: [id])
   classSchedule ClassSchedule @relation(fields: [classScheduleId], references: [id])
   userPackage   UserPackage?  @relation(fields: [userPackageId], references: [id])
+  review        ClassReview?
 
   @@index([userId])
   @@index([classScheduleId, date])
@@ -347,17 +360,18 @@ model UserPackage {
 // ─── POS & Transactions ────────────────────────────────────
 
 model Product {
-  id             String  @id @default(cuid())
-  organizationId String
-  name           String
-  description    String?
-  price          Float
-  currency       String  @default("MXN")
-  category       String?
-  sku            String?
-  stockQuantity  Int?
-  imageUrl       String?
-  isActive       Boolean @default(true)
+  id                String  @id @default(cuid())
+  organizationId    String
+  name              String
+  description       String?
+  price             Float
+  currency          String  @default("MXN")
+  category          String?
+  sku               String?
+  stockQuantity     Int?
+  lowStockThreshold Int?    // alert when stock drops at or below this
+  imageUrl          String?
+  isActive          Boolean @default(true)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -594,4 +608,93 @@ model Referral {
   referredUser User         @relation(fields: [referredUserId], references: [id])
 
   @@index([coachProfileId])
+}
+
+// ─── Client Referral Program ─────────────────────────────
+
+model ClientReferral {
+  id               String    @id @default(cuid())
+  referrerId       String
+  referredUserId   String    @unique
+  referrerRewarded Boolean   @default(false)  // true once referrer earns free class
+  completedAt      DateTime?                  // when referred user finishes first class
+  createdAt        DateTime  @default(now())
+
+  referrer     User @relation("ReferrerUser", fields: [referrerId], references: [id])
+  referredUser User @relation("ReferredUser", fields: [referredUserId], references: [id])
+
+  @@index([referrerId])
+}
+
+// ─── Announcements ───────────────────────────────────────
+
+model Announcement {
+  id             String    @id @default(cuid())
+  organizationId String
+  title          String
+  content        String
+  type           String    @default("info") // info, warning, success
+  isActive       Boolean   @default(true)
+  startsAt       DateTime  @default(now())
+  endsAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, isActive])
+}
+
+// ─── Recurring Bookings ───────────────────────────────────
+
+model RecurringBooking {
+  id              String   @id @default(cuid())
+  userId          String
+  classScheduleId String
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+
+  user          User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classSchedule ClassSchedule @relation(fields: [classScheduleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classScheduleId])
+  @@index([userId])
+}
+
+// ─── Class Reviews ───────────────────────────────────────
+
+model ClassReview {
+  id              String   @id @default(cuid())
+  userId          String
+  bookingId       String   @unique
+  classScheduleId String
+  rating          Int      // 1-5
+  comment         String?
+  createdAt       DateTime @default(now())
+
+  user          User          @relation(fields: [userId], references: [id])
+  booking       Booking       @relation(fields: [bookingId], references: [id])
+  classSchedule ClassSchedule @relation(fields: [classScheduleId], references: [id])
+
+  @@index([classScheduleId])
+  @@index([userId])
+}
+
+// ─── Abandoned Cart ──────────────────────────────────────
+
+model AbandonedCart {
+  id             String    @id @default(cuid())
+  userId         String
+  organizationId String
+  packageId      String?
+  discountSent   Boolean   @default(false)
+  discountSentAt DateTime?
+  convertedAt    DateTime?
+  createdAt      DateTime  @default(now())
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId, discountSent, convertedAt])
 }

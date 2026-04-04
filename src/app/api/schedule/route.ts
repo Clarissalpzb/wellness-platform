@@ -45,6 +45,26 @@ export async function GET(req: NextRequest) {
   const dateStart = new Date(targetDate.toISOString().split("T")[0]);
   const dateEnd = new Date(dateStart.getTime() + 86400000);
 
+  // Check if the requesting user has an active package for this org (for dynamic pricing)
+  const userId = (session.user as any).id;
+  const userRole = (session.user as any).role;
+  let userHasActivePackage = false;
+  if (userRole === "CLIENT" && userId) {
+    const activePkg = await db.userPackage.findFirst({
+      where: {
+        userId,
+        isActive: true,
+        expiresAt: { gt: new Date() },
+        package: { organizationId: targetOrgId },
+      },
+    });
+    userHasActivePackage = !!activePkg;
+  }
+
+  const now = new Date();
+  const classDateMs = dateStart.getTime();
+  const within24h = (classDateMs - now.getTime()) <= 86400000;
+
   const schedules = await db.classSchedule.findMany({
     where: {
       class: { organizationId: targetOrgId, isActive: true },
@@ -84,25 +104,35 @@ export async function GET(req: NextRequest) {
     orderBy: { startTime: "asc" },
   });
 
-  const result = schedules.map((s) => ({
-    id: s.id,
-    time: s.startTime,
-    endTime: s.endTime,
-    name: s.class.name,
-    color: s.class.color,
-    duration: s.class.duration,
-    capacity: s.class.maxCapacity,
-    category: s.class.category,
-    level: s.class.level,
-    location: s.location?.name ?? "",
-    space: s.space?.name ?? "",
-    coach: s.coachProfile
-      ? `${s.coachProfile.user.firstName} ${s.coachProfile.user.lastName}`
-      : "",
-    enrolled: s.bookings.length,
-    available: s.class.maxCapacity - s.bookings.length,
-    organizationId: s.class.organizationId,
-  }));
+  const result = schedules.map((s) => {
+    const enrolled = s.bookings.length;
+    const capacity = s.class.maxCapacity;
+    const occupancy = capacity > 0 ? enrolled / capacity : 0;
+    // Show discount only to users WITHOUT an active package (non-members)
+    const hasDiscount = !userHasActivePackage && within24h && occupancy < 0.4;
+
+    return {
+      id: s.id,
+      time: s.startTime,
+      endTime: s.endTime,
+      name: s.class.name,
+      color: s.class.color,
+      duration: s.class.duration,
+      capacity,
+      category: s.class.category,
+      level: s.class.level,
+      location: s.location?.name ?? "",
+      space: s.space?.name ?? "",
+      coach: s.coachProfile
+        ? `${s.coachProfile.user.firstName} ${s.coachProfile.user.lastName}`
+        : "",
+      enrolled,
+      available: capacity - enrolled,
+      organizationId: s.class.organizationId,
+      hasDiscount,
+      discountPercent: hasDiscount ? 30 : 0,
+    };
+  });
 
   return success(result);
 }

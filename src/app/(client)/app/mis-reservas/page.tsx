@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Calendar, Clock, MapPin, X, Loader2, AlertCircle } from "lucide-react";
+import { Calendar, Clock, MapPin, X, Loader2, AlertCircle, CalendarPlus, Repeat, Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +20,7 @@ import {
 // ---------------------------------------------------------------------------
 interface Booking {
   id: string;
+  classScheduleId?: string;
   className: string;
   coach: string;
   date: string;
@@ -100,6 +101,51 @@ export default function MisReservasPage() {
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
+  const [recurringIds, setRecurringIds] = useState<Set<string>>(new Set());
+  const [togglingRecurring, setTogglingRecurring] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<Booking | null>(null);
+  const [reviewRating, setReviewRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+  const [reviewedIds, setReviewedIds] = useState<Set<string>>(new Set());
+
+  // ---- Fetch recurring subscriptions ----
+  useEffect(() => {
+    fetch("/api/recurring-bookings")
+      .then((r) => r.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setRecurringIds(new Set(data.map((r: any) => r.classScheduleId)));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  async function toggleRecurring(booking: Booking) {
+    if (!booking.classScheduleId) return;
+    setTogglingRecurring(booking.classScheduleId);
+    try {
+      if (recurringIds.has(booking.classScheduleId)) {
+        // Find the recurring booking id to delete — re-fetch list
+        const res = await fetch("/api/recurring-bookings");
+        const list = await res.json();
+        const found = list.find((r: any) => r.classScheduleId === booking.classScheduleId);
+        if (found) {
+          await fetch(`/api/recurring-bookings/${found.id}`, { method: "DELETE" });
+          setRecurringIds((prev) => { const s = new Set(prev); s.delete(booking.classScheduleId!); return s; });
+        }
+      } else {
+        await fetch("/api/recurring-bookings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ classScheduleId: booking.classScheduleId }),
+        });
+        setRecurringIds((prev) => new Set(prev).add(booking.classScheduleId!));
+      }
+    } finally {
+      setTogglingRecurring(null);
+    }
+  }
 
   // ---- Fetch bookings ----
   const fetchBookings = useCallback(async () => {
@@ -169,9 +215,17 @@ export default function MisReservasPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-neutral-900">Mis Reservas</h1>
-        <p className="text-sm text-neutral-500">Gestiona tus reservas de clases</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-neutral-900">Mis Reservas</h1>
+          <p className="text-sm text-neutral-500">Gestiona tus reservas de clases</p>
+        </div>
+        <a href="/api/bookings/ical" download="mis-clases.ics">
+          <Button variant="outline" size="sm" className="gap-2 shrink-0">
+            <CalendarPlus className="h-4 w-4" />
+            <span className="hidden sm:inline">Exportar a Calendario</span>
+          </Button>
+        </a>
       </div>
 
       {loading ? (
@@ -227,18 +281,35 @@ export default function MisReservasPage() {
                           <p className="text-sm text-neutral-500 mt-1">Coach: {booking.coach}</p>
                         )}
                       </div>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="text-accent-rose border-accent-rose/30 hover:bg-accent-rose-light shrink-0"
-                        onClick={() => {
-                          setCancelTarget(booking);
-                          setCancelError("");
-                        }}
-                      >
-                        <X className="h-3 w-3 mr-1" />
-                        Cancelar
-                      </Button>
+                      <div className="flex gap-2 shrink-0">
+                        {booking.classScheduleId && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            title={recurringIds.has(booking.classScheduleId) ? "Cancelar recurrencia" : "Reservar cada semana"}
+                            className={recurringIds.has(booking.classScheduleId) ? "text-green-700 border-green-300 bg-green-50" : ""}
+                            onClick={() => toggleRecurring(booking)}
+                            disabled={togglingRecurring === booking.classScheduleId}
+                          >
+                            {togglingRecurring === booking.classScheduleId
+                              ? <Loader2 className="h-3 w-3 animate-spin" />
+                              : <Repeat className="h-3 w-3" />
+                            }
+                          </Button>
+                        )}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="text-accent-rose border-accent-rose/30 hover:bg-accent-rose-light"
+                          onClick={() => {
+                            setCancelTarget(booking);
+                            setCancelError("");
+                          }}
+                        >
+                          <X className="h-3 w-3 mr-1" />
+                          Cancelar
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -255,7 +326,7 @@ export default function MisReservasPage() {
               </div>
             ) : (
               past.map((booking) => (
-                <Card key={booking.id} className="opacity-75">
+                <Card key={booking.id} className="opacity-80">
                   <CardContent className="py-4">
                     <div className="flex items-center gap-4">
                       <div className="h-12 w-1 rounded-full" style={{ backgroundColor: booking.color }} />
@@ -277,6 +348,20 @@ export default function MisReservasPage() {
                           </span>
                         </div>
                       </div>
+                      {(booking.status === "COMPLETED" || booking.status === "CHECKED_IN") && !reviewedIds.has(booking.id) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="shrink-0 gap-1 text-amber-600 border-amber-200 hover:bg-amber-50"
+                          onClick={() => { setReviewTarget(booking); setReviewRating(0); setReviewComment(""); }}
+                        >
+                          <Star className="h-3 w-3" />
+                          Calificar
+                        </Button>
+                      )}
+                      {reviewedIds.has(booking.id) && (
+                        <span className="text-xs text-neutral-400 shrink-0">Reseña enviada ✓</span>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -285,6 +370,68 @@ export default function MisReservasPage() {
           </TabsContent>
         </Tabs>
       )}
+
+      {/* Review dialog */}
+      <Dialog open={!!reviewTarget} onOpenChange={() => setReviewTarget(null)}>
+        {reviewTarget && (
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Calificar clase</DialogTitle>
+              <DialogDescription>{reviewTarget.className}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-neutral-600 mb-2">¿Cómo fue tu experiencia?</p>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      onClick={() => setReviewRating(star)}
+                      className={`text-2xl transition-transform hover:scale-110 ${star <= reviewRating ? "text-yellow-400" : "text-neutral-300"}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <textarea
+                  value={reviewComment}
+                  onChange={(e) => setReviewComment(e.target.value)}
+                  placeholder="Comentario opcional..."
+                  rows={3}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setReviewTarget(null)}>Cancelar</Button>
+              <Button
+                disabled={reviewRating === 0 || reviewSubmitting}
+                onClick={async () => {
+                  setReviewSubmitting(true);
+                  try {
+                    const res = await fetch("/api/reviews", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ bookingId: reviewTarget.id, rating: reviewRating, comment: reviewComment }),
+                    });
+                    if (res.ok) {
+                      setReviewedIds((s) => new Set(s).add(reviewTarget.id));
+                      setReviewTarget(null);
+                    }
+                  } finally {
+                    setReviewSubmitting(false);
+                  }
+                }}
+              >
+                {reviewSubmitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                Enviar reseña
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        )}
+      </Dialog>
 
       {/* Cancel confirmation dialog */}
       <Dialog open={!!cancelTarget} onOpenChange={() => setCancelTarget(null)}>

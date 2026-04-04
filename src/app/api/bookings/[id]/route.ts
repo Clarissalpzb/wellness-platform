@@ -2,6 +2,72 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
 import { unauthorized, badRequest, notFound, success } from "@/lib/api-helpers";
+import { getResend } from "@/lib/resend";
+
+async function notifyWaitlistPromotion(
+  userId: string,
+  classScheduleId: string,
+  bookingDate: Date
+) {
+  try {
+    const user = await db.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true },
+    });
+    const schedule = await db.classSchedule.findUnique({
+      where: { id: classScheduleId },
+      include: {
+        class: { select: { name: true } },
+        location: { select: { name: true } },
+      },
+    });
+    if (!user || !schedule) return;
+
+    const appUrl = process.env.NEXTAUTH_URL || "http://localhost:3000";
+    const fromAddress =
+      process.env.RESEND_FROM_EMAIL || "Wellness Platform <onboarding@resend.dev>";
+    const dateStr = bookingDate.toLocaleDateString("es-MX", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+
+    const resend = getResend();
+    await resend.emails.send({
+      from: fromAddress,
+      to: user.email,
+      subject: `¡Tu lugar está listo! — ${schedule.class.name} 🎉`,
+      html: `
+        <div style="font-family: sans-serif; max-width: 480px; margin: 0 auto; color: #171717;">
+          <div style="background: linear-gradient(135deg, #16a34a, #059669); padding: 32px 24px; border-radius: 12px 12px 0 0; text-align: center;">
+            <h1 style="color: white; margin: 0; font-size: 22px;">¡Tienes un lugar! 🎉</h1>
+          </div>
+          <div style="background: white; padding: 28px 24px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 12px 12px;">
+            <p style="font-size: 16px; color: #404040; line-height: 1.6;">
+              Hola ${user.firstName}, se liberó un lugar en la clase que estabas esperando:
+            </p>
+            <div style="background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin: 20px 0;">
+              <p style="margin: 0 0 4px; font-weight: 700; font-size: 17px; color: #15803d;">${schedule.class.name}</p>
+              <p style="margin: 0; font-size: 14px; color: #525252;">
+                ${dateStr} · ${schedule.startTime} – ${schedule.endTime}
+                ${schedule.location ? ` · ${schedule.location.name}` : ""}
+              </p>
+            </div>
+            <p style="font-size: 14px; color: #737373;">Tu reserva ya está confirmada. ¡Te esperamos!</p>
+            <div style="text-align: center; margin-top: 24px;">
+              <a href="${appUrl}/app/mis-reservas"
+                 style="background: #16a34a; color: white; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: 600; font-size: 15px; display: inline-block;">
+                Ver mis reservas
+              </a>
+            </div>
+          </div>
+        </div>
+      `,
+    });
+  } catch {
+    // Non-blocking — don't fail the cancellation if email fails
+  }
+}
 
 export async function GET(
   _req: NextRequest,
@@ -205,6 +271,9 @@ export async function PUT(
             ]
           : []),
       ]);
+
+      // Notify the promoted user via email (non-blocking)
+      notifyWaitlistPromotion(nextInLine.userId, booking.classScheduleId, booking.date);
     }
 
     return success({
@@ -305,6 +374,9 @@ export async function DELETE(
           ]
         : []),
     ]);
+
+    // Notify the promoted user via email (non-blocking)
+    notifyWaitlistPromotion(nextInLine.userId, booking.classScheduleId, booking.date);
   }
 
   return success({

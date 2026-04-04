@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Camera, Package, Save, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import { Camera, Package, Save, Loader2, CheckCircle2, AlertCircle, Trophy, Dumbbell, Gift, Copy, Check } from "lucide-react";
 import Link from "next/link";
 
 // ---------------------------------------------------------------------------
@@ -42,6 +42,9 @@ interface ProfileData {
     currentStreak: number;
     favoriteClass: string;
     memberSince: string;
+    totalClasses?: number;
+    disciplines?: { name: string; count: number }[];
+    milestones?: { target: number; achieved: boolean; label: string }[];
   };
   notifications: {
     email: boolean;
@@ -385,6 +388,63 @@ export default function PerfilPage() {
             </CardContent>
           </Card>
 
+          {/* Progress & Milestones */}
+          {(profile.stats.disciplines?.length ?? 0) > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Dumbbell className="h-5 w-5 text-green-600" />
+                  Mi Progreso
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide">Clases por disciplina</p>
+                  {profile.stats.disciplines?.map((d) => {
+                    const total = profile.stats.totalClasses ?? 1;
+                    const pct = Math.round((d.count / total) * 100);
+                    return (
+                      <div key={d.name} className="space-y-1">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-neutral-700 font-medium">{d.name}</span>
+                          <span className="text-neutral-500">{d.count} clase{d.count !== 1 ? "s" : ""}</span>
+                        </div>
+                        <div className="h-2 bg-neutral-100 rounded-full overflow-hidden">
+                          <div
+                            className="h-full bg-green-500 rounded-full transition-all"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div>
+                  <p className="text-xs font-medium text-neutral-500 uppercase tracking-wide mb-2">Logros</p>
+                  <div className="flex flex-wrap gap-2">
+                    {profile.stats.milestones?.map((m) => (
+                      <div
+                        key={m.target}
+                        className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${
+                          m.achieved
+                            ? "bg-green-50 text-green-700 border-green-200"
+                            : "bg-neutral-50 text-neutral-400 border-neutral-200 opacity-60"
+                        }`}
+                      >
+                        <Trophy className={`h-3 w-3 ${m.achieved ? "text-yellow-500" : "text-neutral-300"}`} />
+                        {m.label}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Referral Program */}
+          <ReferralCard />
+
           <Card>
             <CardHeader>
               <CardTitle>Notificaciones</CardTitle>
@@ -427,5 +487,70 @@ export default function PerfilPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Referral Card
+// ---------------------------------------------------------------------------
+function ReferralCard() {
+  const [data, setData] = useState<{ referralLink: string; totalReferrals: number; rewarded: number; pending: number } | null>(null);
+  const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/referral")
+      .then((r) => r.json())
+      .then((d) => setData(d))
+      .catch(() => {});
+  }, []);
+
+  async function copy() {
+    if (!data?.referralLink) return;
+    await navigator.clipboard.writeText(data.referralLink);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (!data) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Gift className="h-5 w-5 text-green-600" />
+          Referir Amigos
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <p className="text-sm text-neutral-600">
+          Comparte tu link único. Cuando tu amigo se registre, recibirá <strong>1 clase gratis</strong>. Tú recibirás <strong>1 clase gratis</strong> cuando complete su primera sesión.
+        </p>
+
+        <div className="flex gap-2">
+          <div className="flex-1 min-w-0 bg-neutral-50 border border-neutral-200 rounded-lg px-3 py-2 text-sm text-neutral-700 truncate">
+            {data.referralLink}
+          </div>
+          <Button variant="outline" size="sm" onClick={copy} className="shrink-0 gap-1.5">
+            {copied ? <Check className="h-4 w-4 text-green-600" /> : <Copy className="h-4 w-4" />}
+            {copied ? "Copiado" : "Copiar"}
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="bg-neutral-50 rounded-lg p-3">
+            <p className="text-xl font-bold text-neutral-900">{data.totalReferrals}</p>
+            <p className="text-xs text-neutral-500">Referidos</p>
+          </div>
+          <div className="bg-green-50 rounded-lg p-3">
+            <p className="text-xl font-bold text-green-700">{data.rewarded}</p>
+            <p className="text-xs text-green-600">Completados</p>
+          </div>
+          <div className="bg-amber-50 rounded-lg p-3">
+            <p className="text-xl font-bold text-amber-700">{data.pending}</p>
+            <p className="text-xs text-amber-600">Pendientes</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

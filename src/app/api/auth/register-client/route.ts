@@ -51,21 +51,67 @@ export async function POST(req: Request) {
       },
     });
 
-    // Handle referral code — create Referral record linking coach to new user
     if (data.referralCode) {
-      const coachProfile = await db.coachProfile.findUnique({
-        where: { referralCode: data.referralCode.toUpperCase() },
-      });
+      const upperCode = data.referralCode.toUpperCase();
 
+      // Coach referral (existing logic)
+      const coachProfile = await db.coachProfile.findUnique({
+        where: { referralCode: upperCode },
+      });
       if (coachProfile) {
         await db.referral.create({
-          data: {
-            coachProfileId: coachProfile.id,
-            referredUserId: user.id,
-          },
+          data: { coachProfileId: coachProfile.id, referredUserId: user.id },
         });
       }
-      // If code is invalid, silently ignore — don't block registration
+
+      // Client referral — check if the code belongs to an existing client
+      const referrer = await db.user.findUnique({
+        where: { referralCode: upperCode },
+        select: { id: true, organizationId: true },
+      });
+      if (referrer && referrer.id !== user.id) {
+        // Track the referral
+        await db.clientReferral.create({
+          data: { referrerId: referrer.id, referredUserId: user.id },
+        });
+
+        // Grant referred user 1 free class (15 days) immediately
+        const refOrgId = organizationId || referrer.organizationId;
+        if (refOrgId) {
+          let introPkg = await db.package.findFirst({
+            where: {
+              organizationId: refOrgId,
+              metadata: { path: ["isReferralOffer"], equals: true },
+            },
+          });
+          if (!introPkg) {
+            introPkg = await db.package.create({
+              data: {
+                organizationId: refOrgId,
+                name: "Clase de Bienvenida (Referido)",
+                description: "1 clase gratis por referido. Válida por 15 días.",
+                type: "DROP_IN",
+                price: 0,
+                classLimit: 1,
+                validityDays: 15,
+                isActive: true,
+                metadata: { isReferralOffer: true },
+              },
+            });
+          }
+          const { addDays } = await import("date-fns");
+          await db.userPackage.create({
+            data: {
+              userId: user.id,
+              packageId: introPkg.id,
+              classesTotal: 1,
+              classesUsed: 0,
+              expiresAt: addDays(new Date(), 15),
+              isActive: true,
+            },
+          });
+        }
+      }
     }
 
     return NextResponse.json({

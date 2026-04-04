@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, AlertCircle, Package, CheckCircle2 } from "lucide-react";
+import { Loader2, AlertCircle, Package, CheckCircle2, Gift } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface UserPackageItem {
   id: string;
@@ -39,14 +40,24 @@ function MisPaquetesContent() {
 
   const [packages, setPackages] = useState<UserPackageItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [introEligible, setIntroEligible] = useState(false);
+  const [introClaiming, setIntroClaiming] = useState(false);
+  const [introClaimed, setIntroClaimed] = useState(false);
 
   useEffect(() => {
     async function load() {
       try {
-        const res = await fetch("/api/profile");
-        if (res.ok) {
-          const data = await res.json();
+        const [profileRes, introRes] = await Promise.all([
+          fetch("/api/profile"),
+          fetch("/api/intro-offer"),
+        ]);
+        if (profileRes.ok) {
+          const data = await profileRes.json();
           setPackages(data.packages ?? []);
+        }
+        if (introRes.ok) {
+          const data = await introRes.json();
+          setIntroEligible(data.eligible);
         }
       } catch {
         // silently fail
@@ -56,6 +67,25 @@ function MisPaquetesContent() {
     }
     load();
   }, []);
+
+  async function claimIntroOffer() {
+    setIntroClaiming(true);
+    try {
+      const res = await fetch("/api/intro-offer", { method: "POST" });
+      if (res.ok) {
+        setIntroClaimed(true);
+        setIntroEligible(false);
+        // Reload packages
+        const profileRes = await fetch("/api/profile");
+        if (profileRes.ok) {
+          const data = await profileRes.json();
+          setPackages(data.packages ?? []);
+        }
+      }
+    } finally {
+      setIntroClaiming(false);
+    }
+  }
 
   // Group packages by studio
   const grouped = useMemo(() => {
@@ -91,6 +121,34 @@ function MisPaquetesContent() {
         <h1 className="text-2xl font-bold text-neutral-900">Mis Paquetes</h1>
         <p className="text-sm text-neutral-500">Tus paquetes activos</p>
       </div>
+
+      {/* Intro offer banner */}
+      {introEligible && !introClaimed && (
+        <div className="flex items-center justify-between gap-3 p-4 rounded-xl bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200">
+          <div className="flex items-center gap-3">
+            <Gift className="h-5 w-5 text-green-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-green-900">¡Tu primera clase es gratis!</p>
+              <p className="text-xs text-green-700">Reclama ahora — válida por 15 días.</p>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            onClick={claimIntroOffer}
+            disabled={introClaiming}
+            className="bg-green-600 hover:bg-green-700 text-white shrink-0"
+          >
+            {introClaiming ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reclamar"}
+          </Button>
+        </div>
+      )}
+
+      {introClaimed && (
+        <div className="flex items-center gap-2 p-4 rounded-xl bg-green-50 text-green-800 text-sm">
+          <CheckCircle2 className="h-5 w-5 flex-shrink-0" />
+          <span>¡Clase de bienvenida activada! Tienes 15 días para usarla.</span>
+        </div>
+      )}
 
       {showSuccessBanner && (
         <div className="flex items-center justify-between gap-2 text-sm p-4 rounded-xl bg-green-50 text-green-800">
