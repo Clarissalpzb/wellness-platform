@@ -21,6 +21,8 @@ import {
   Clock,
   Gift,
   UserCheck,
+  BarChart3,
+  Zap,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -47,6 +49,8 @@ const allNavGroups: NavGroup[] = [
     label: "Dashboard",
     items: [
       { name: "Resumen", href: "/dashboard", icon: LayoutDashboard, permission: "dashboard:view" },
+      { name: "Reportes", href: "/reportes", icon: BarChart3, permission: "dashboard:view" },
+      { name: "Piloto Automático", href: "/autopilot", icon: Zap, permission: "insights:view" },
       { name: "Insights IA", href: "/dashboard/insights", icon: Lightbulb, permission: "insights:view" },
       { name: "Operaciones", href: "/dashboard/operaciones", icon: Activity, permission: "dashboard:view" },
       { name: "Marketing", href: "/dashboard/marketing", icon: TrendingUp, permission: "dashboard:view" },
