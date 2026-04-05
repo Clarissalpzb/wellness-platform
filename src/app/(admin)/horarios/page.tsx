@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, CalendarPlus, UserCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Wand2, Check, X, CheckCheck, Trash2, Loader2, Plus, CalendarPlus, UserCircle, Sparkles, Lock } from "lucide-react";
+import { AIScheduleModal, type AIScheduleResult } from "./ai-schedule-modal";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
@@ -179,6 +180,12 @@ function HorariosContent() {
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [suggestError, setSuggestError] = useState<string | null>(null);
+
+  // AI schedule modal
+  const [showAIModal, setShowAIModal] = useState(false);
+  const [aiReasoning, setAIReasoning] = useState<Record<string, string>>({});
+  const [anchorClassIds, setAnchorClassIds] = useState<Set<string>>(new Set());
+  const [aiSummary, setAISummary] = useState<string | null>(null);
 
   // Schedule dialog state
   const [showScheduleDialog, setShowScheduleDialog] = useState(false);
@@ -363,6 +370,28 @@ function HorariosContent() {
     }
   };
 
+  const handleAIResult = (result: AIScheduleResult) => {
+    // Filter out anchor slots (already scheduled, no need to re-create)
+    // Coerce coachProfileId null → "" to match ScheduleSuggestion type
+    const newSuggestions = result.suggestions
+      .filter((s) => s.isNew)
+      .map((s) => ({ ...s, coachProfileId: s.coachProfileId ?? "", spaceId: s.spaceId ?? "" }));
+    setSuggestions(newSuggestions);
+    setUnschedulable(result.unschedulable ?? []);
+    setAcceptedIds(new Set(newSuggestions.map((s) => s.classId)));
+    setRejectedIds(new Set());
+    setSuggestError(null);
+
+    // Store reasoning and anchor info for display
+    const reasoningMap: Record<string, string> = {};
+    for (const s of result.suggestions) {
+      if (s.reasoning) reasoningMap[`${s.classId}-${s.dayOfWeek}-${s.startTime}`] = s.reasoning;
+    }
+    setAIReasoning(reasoningMap);
+    setAnchorClassIds(new Set(result.anchors));
+    setAISummary(result.aiSummary ?? null);
+  };
+
   const toggleAccept = (classId: string) => {
     setAcceptedIds((prev) => {
       const next = new Set(prev);
@@ -475,6 +504,14 @@ function HorariosContent() {
             <CalendarPlus className="h-4 w-4 mr-1" />
             Agendar Horario
           </Button>
+          <Button
+            size="sm"
+            onClick={() => setShowAIModal(true)}
+            className="bg-gradient-to-r from-accent-amber to-primary-500 hover:from-accent-amber hover:to-primary-600 text-white border-0"
+          >
+            <Sparkles className="h-4 w-4 mr-1" />
+            IA: Generar Horario
+          </Button>
           <Button variant="outline" size="sm" onClick={prevWeek}>
             <ChevronLeft className="h-4 w-4" />
           </Button>
@@ -575,6 +612,31 @@ function HorariosContent() {
       )}
 
       {/* Error message */}
+      {/* AI summary banner */}
+      {aiSummary && hasSuggestions && (
+        <div className="flex items-start gap-2 bg-gradient-to-r from-primary-50 to-accent-amber-light border border-primary-200 rounded-xl px-4 py-3">
+          <Sparkles className="h-4 w-4 text-accent-amber shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-neutral-700 mb-0.5">Análisis de Claude</p>
+            <p className="text-xs text-neutral-600 leading-relaxed">{aiSummary}</p>
+          </div>
+          <button onClick={() => setAISummary(null)} className="text-neutral-400 hover:text-neutral-600 shrink-0">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Anchor info banner */}
+      {anchorClassIds.size > 0 && hasSuggestions && (
+        <div className="flex items-center gap-2 px-3 py-2 bg-accent-blue-light border border-accent-blue rounded-lg text-xs text-accent-blue">
+          <Lock className="h-3.5 w-3.5 shrink-0" />
+          <span>
+            {anchorClassIds.size} slot{anchorClassIds.size !== 1 ? "s" : ""} ancla protegido{anchorClassIds.size !== 1 ? "s" : ""} —
+            clases con 8+ semanas consecutivas que no se han modificado.
+          </span>
+        </div>
+      )}
+
       {suggestError && (
         <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-2 text-sm text-red-700">
           {suggestError}
@@ -892,6 +954,14 @@ function HorariosContent() {
         locations={locations}
         onSaved={() => { setShowBulkDialog(false); fetchSchedules(); }}
         onClose={() => setShowBulkDialog(false)}
+      />
+
+      {/* AI Schedule Modal */}
+      <AIScheduleModal
+        open={showAIModal}
+        locationId={selectedLocationId}
+        onClose={() => setShowAIModal(false)}
+        onApply={handleAIResult}
       />
 
     </div>
