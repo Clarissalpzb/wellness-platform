@@ -20,6 +20,7 @@ type RecoverInput = z.infer<typeof schema>;
 export default function RecoverPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
 
   const {
     register,
@@ -31,13 +32,21 @@ export default function RecoverPage() {
 
   async function onSubmit(data: RecoverInput) {
     setIsLoading(true);
+    setServerError(null);
     try {
-      await fetch("/api/auth/recover", {
+      const res = await fetch("/api/auth/recover", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
+      const json = await res.json();
+      if (!res.ok) {
+        setServerError(json.error || "Error al enviar el correo. Intenta de nuevo.");
+        return;
+      }
       setSent(true);
+    } catch {
+      setServerError("Error de conexión. Verifica tu internet e intenta de nuevo.");
     } finally {
       setIsLoading(false);
     }
@@ -78,6 +87,9 @@ export default function RecoverPage() {
               <p className="text-sm text-accent-rose">{errors.email.message}</p>
             )}
           </div>
+          {serverError && (
+            <p className="text-sm text-accent-rose bg-accent-rose-light px-3 py-2 rounded-lg">{serverError}</p>
+          )}
           <Button type="submit" className="w-full" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Enviar Instrucciones
