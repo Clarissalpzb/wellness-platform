@@ -4,6 +4,7 @@ export type Permission =
   | "dashboard:view"
   | "insights:view"
   | "classes:manage"
+  | "classes:book_self"
   | "packages:manage"
   | "staff:manage"
   | "locations:manage"
@@ -15,7 +16,8 @@ export type Permission =
   | "compensation:view_all"
   | "compensation:view_own"
   | "availability:manage_own"
-  | "referrals:view_own";
+  | "referrals:view_own"
+  | "benefits:view_own";
 
 export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   OWNER: [
@@ -61,6 +63,9 @@ export const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
     "users:view",
     "users:checkin",
     "pos:manage",
+    "referrals:view_own",
+    "classes:book_self",
+    "benefits:view_own",
   ],
   COACH: [
     "compensation:view_own",

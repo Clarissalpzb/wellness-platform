@@ -23,6 +23,8 @@ import {
   UserCheck,
   BarChart3,
   Zap,
+  Dumbbell,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -76,7 +78,14 @@ const allNavGroups: NavGroup[] = [
     items: [
       { name: "Compensación", href: "/coach/compensacion", icon: DollarSign, permission: "compensation:view_own" },
       { name: "Disponibilidad", href: "/coach/disponibilidad", icon: Clock, permission: "availability:manage_own" },
-      { name: "Referidos", href: "/coach/referidos", icon: Gift, permission: "referrals:view_own" },
+    ],
+  },
+  {
+    label: "Mi cuenta",
+    items: [
+      { name: "Mis Beneficios", href: "/mis-beneficios", icon: Dumbbell, permission: "benefits:view_own" },
+      { name: "Mis Ganancias", href: "/mis-ganancias", icon: TrendingUp, permission: "benefits:view_own" },
+      { name: "Referidos", href: "/referidos", icon: Gift, permission: "referrals:view_own" },
     ],
   },
 ];

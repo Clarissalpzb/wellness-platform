@@ -28,7 +28,7 @@ export const classSchema = z.object({
 
 export const packageSchema = z.object({
   name: z.string().min(2, "Mínimo 2 caracteres"),
-  description: z.string().optional(),
+  description: z.string().nullable().optional(),
   type: z.enum(["CLASS_PACK", "UNLIMITED", "DROP_IN", "MEMBERSHIP"]),
   price: z.coerce.number().min(0, "Precio debe ser positivo"),
   classLimit: z.coerce.number().optional(),
@@ -53,6 +53,7 @@ export const staffSchema = z.object({
   email: z.string().email("Email inválido").optional().or(z.literal("")),
   role: z.enum(["ADMIN", "HEAD_COACH", "FRONT_DESK", "COACH"]),
   phone: z.string().optional(),
+  hourlyRate: z.coerce.number().min(0).nullable().optional(),
 });
 
 export const campaignSchema = z.object({

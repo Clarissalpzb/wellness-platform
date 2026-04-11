@@ -61,6 +61,7 @@ export default function EquipoPage() {
 
   // Form state for select
   const [formRole, setFormRole] = useState("");
+  const [formHourlyRate, setFormHourlyRate] = useState<string>("");
 
   const fetchData = async () => {
     try {
@@ -94,6 +95,7 @@ export default function EquipoPage() {
       email: (formData.get("email") as string) || undefined,
       role: formRole,
       phone: formData.get("phone") as string || undefined,
+      hourlyRate: formHourlyRate ? Number(formHourlyRate) : undefined,
     };
     try {
       const res = await fetch("/api/staff", {
@@ -125,6 +127,7 @@ export default function EquipoPage() {
       email: (formData.get("email") as string) || undefined,
       role: formRole || editItem.role,
       phone: formData.get("phone") as string || undefined,
+      hourlyRate: formHourlyRate ? Number(formHourlyRate) : undefined,
     };
     try {
       const res = await fetch(`/api/staff/${editItem.id}`, {
@@ -153,6 +156,7 @@ export default function EquipoPage() {
 
   const openEdit = (member: any) => {
     setFormRole(member.role || "");
+    setFormHourlyRate(member.hourlyRate != null ? String(member.hourlyRate) : "");
     setEditItem(member);
   };
 
@@ -160,6 +164,7 @@ export default function EquipoPage() {
     setShowCreate(false);
     setEditItem(null);
     setFormRole("");
+    setFormHourlyRate("");
     setFormError(null);
   };
 
@@ -251,6 +256,7 @@ export default function EquipoPage() {
                 <TableHead>Nombre</TableHead>
                 <TableHead>Email</TableHead>
                 <TableHead>Rol</TableHead>
+                <TableHead>Tarifa/hr</TableHead>
                 <TableHead>Estado</TableHead>
                 <TableHead className="w-12"></TableHead>
               </TableRow>
@@ -274,6 +280,9 @@ export default function EquipoPage() {
                     <Badge variant={roleBadgeVariant[member.role] || "secondary"}>
                       {roleLabels[member.role] || member.role}
                     </Badge>
+                  </TableCell>
+                  <TableCell className="text-neutral-500">
+                    {member.hourlyRate != null ? `$${member.hourlyRate}/hr` : "—"}
                   </TableCell>
                   <TableCell>
                     <Badge variant={member.isActive ? "success" : "secondary"}>
@@ -391,6 +400,19 @@ export default function EquipoPage() {
               <Label htmlFor="phone">Teléfono (opcional)</Label>
               <Input id="phone" name="phone" type="tel" placeholder="+52 55 1234 5678" defaultValue={editItem?.phone || ""} />
             </div>
+            {(formRole === "FRONT_DESK" || (!formRole && editItem?.role === "FRONT_DESK")) && (
+              <div className="space-y-2">
+                <Label htmlFor="hourlyRate">Tarifa por hora (MXN)</Label>
+                <Input
+                  id="hourlyRate"
+                  type="number"
+                  placeholder="Ej: 80"
+                  value={formHourlyRate}
+                  onChange={(e) => setFormHourlyRate(e.target.value)}
+                />
+                <p className="text-xs text-neutral-400">Visible para el miembro en su sección de ganancias.</p>
+              </div>
+            )}
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog} disabled={saving}>Cancelar</Button>
               <Button type="submit" disabled={saving}>

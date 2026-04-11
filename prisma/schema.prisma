@@ -23,6 +23,7 @@ model Organization {
   users          User[]
   classes        Class[]
   packages       Package[]
+  packageGroups  PackageGroup[]
   products       Product[]
   campaigns      Campaign[]
   insights       Insight[]
@@ -96,6 +97,7 @@ model User {
 
   hasClaimedIntroOffer Boolean  @default(false)
   referralCode         String?  @unique  // client referral code
+  hourlyRate           Float?            // for FRONT_DESK/staff wage tracking
 
   organization        Organization?     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   accounts            Account[]
@@ -315,9 +317,29 @@ enum PackageType {
   MEMBERSHIP    // Recurring subscription
 }
 
+model PackageGroup {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  color          String   @default("#4ade80")
+  emoji          String?
+  sortOrder      Int      @default(0)
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  packages     Package[]
+
+  @@index([organizationId])
+  @@index([organizationId, sortOrder])
+}
+
 model Package {
   id             String      @id @default(cuid())
   organizationId String
+  groupId        String?
   name           String
   description    String?
   type           PackageType
@@ -326,16 +348,19 @@ model Package {
   classLimit     Int?        // null = unlimited
   validityDays   Int         // days from purchase
   isActive       Boolean     @default(true)
+  isFeatured     Boolean     @default(false)
   stripePriceId  String?
   metadata       Json        @default("{}")
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  group        PackageGroup? @relation(fields: [groupId], references: [id], onDelete: SetNull)
   userPackages UserPackage[]
 
   @@index([organizationId])
   @@index([organizationId, isActive])
+  @@index([groupId])
 }
 
 model UserPackage {

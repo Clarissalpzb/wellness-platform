@@ -40,12 +40,20 @@ export async function PUT(
   if (!existing) return notFound("Paquete no encontrado");
 
   const body = await req.json();
-  const parsed = packageSchema.partial().safeParse(body);
+  const { groupId, isFeatured, ...rest } = body;
+  const parsed = packageSchema.partial().safeParse(rest);
   if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
   const updated = await db.package.update({
     where: { id },
-    data: parsed.data,
+    data: {
+      ...parsed.data,
+      ...(groupId !== undefined && { groupId: groupId || null }),
+      ...(isFeatured !== undefined && { isFeatured }),
+    },
+    include: {
+      group: { select: { id: true, name: true, color: true, emoji: true } },
+    },
   });
   return success(updated);
 }

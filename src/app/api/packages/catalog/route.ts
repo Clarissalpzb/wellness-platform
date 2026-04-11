@@ -1,22 +1,18 @@
-import { NextRequest } from "next/server";
+// Public package catalog — returns active packages grouped for client display
+// Accessible to authenticated clients (no manage permission needed)
+import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auth } from "@/lib/auth";
-import { unauthorized, badRequest, success } from "@/lib/api-helpers";
+import { unauthorized } from "@/lib/api-helpers";
 
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth();
-  if (!session?.user?.id) return unauthorized();
-
-  const { searchParams } = new URL(req.url);
-  const organizationId = searchParams.get("organizationId");
-
-  if (!organizationId) {
-    return badRequest("organizationId es requerido");
-  }
+  if (!session?.user) return unauthorized();
+  const orgId = (session.user as any).organizationId as string;
 
   // Fetch active groups with their active packages
   const groups = await db.packageGroup.findMany({
-    where: { organizationId, isActive: true },
+    where: { organizationId: orgId, isActive: true },
     include: {
       packages: {
         where: { isActive: true },
@@ -31,9 +27,9 @@ export async function GET(req: NextRequest) {
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
   });
 
-  // Ungrouped active packages
+  // Also get ungrouped active packages
   const ungrouped = await db.package.findMany({
-    where: { organizationId, isActive: true, groupId: null },
+    where: { organizationId: orgId, isActive: true, groupId: null },
     orderBy: [{ isFeatured: "desc" }, { price: "asc" }],
     select: {
       id: true, name: true, description: true, type: true,
@@ -42,8 +38,5 @@ export async function GET(req: NextRequest) {
     },
   });
 
-  // Filter out empty groups
-  const nonEmptyGroups = groups.filter((g) => g.packages.length > 0);
-
-  return success({ groups: nonEmptyGroups, ungrouped });
+  return NextResponse.json({ groups, ungrouped });
 }

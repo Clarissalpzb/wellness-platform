@@ -13,8 +13,11 @@ export async function GET() {
 
   const packages = await db.package.findMany({
     where: { organizationId: orgId },
-    include: { _count: { select: { userPackages: true } } },
-    orderBy: { createdAt: "desc" },
+    include: {
+      _count: { select: { userPackages: true } },
+      group: { select: { id: true, name: true, color: true, emoji: true } },
+    },
+    orderBy: [{ group: { sortOrder: "asc" } }, { createdAt: "desc" }],
   });
   return success(packages);
 }
@@ -30,8 +33,18 @@ export async function POST(req: NextRequest) {
   const parsed = packageSchema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
+  const { groupId, isFeatured, ...rest } = body;
+
   const newPackage = await db.package.create({
-    data: { ...parsed.data, organizationId: orgId },
+    data: {
+      ...parsed.data,
+      organizationId: orgId,
+      groupId: groupId || null,
+      isFeatured: isFeatured ?? false,
+    },
+    include: {
+      group: { select: { id: true, name: true, color: true, emoji: true } },
+    },
   });
   return success(newPackage, 201);
 }

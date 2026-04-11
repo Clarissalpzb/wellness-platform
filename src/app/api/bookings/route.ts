@@ -162,8 +162,32 @@ export async function POST(req: NextRequest) {
     (pkg) => pkg.classesTotal === null || pkg.classesUsed < pkg.classesTotal
   ) ?? null;
 
+  // Staff perk: FRONT_DESK get 4 free classes per month without a package
+  const STAFF_FREE_CLASSES_PER_MONTH = 4;
+  let isStaffPerk = false;
+
   if (!activePackage) {
-    return badRequest("Necesitas un paquete activo con este estudio para reservar");
+    const userRole = (session.user as any).role as string;
+    if (userRole === "FRONT_DESK") {
+      const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      const monthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1);
+      const monthlyStaffBookings = await db.booking.count({
+        where: {
+          userId,
+          date: { gte: monthStart, lt: monthEnd },
+          status: { not: "CANCELLED" },
+          source: "staff_perk",
+        },
+      });
+      if (monthlyStaffBookings >= STAFF_FREE_CLASSES_PER_MONTH) {
+        return badRequest(
+          `Has usado tus ${STAFF_FREE_CLASSES_PER_MONTH} clases gratuitas del mes. Adquiere un paquete para continuar.`
+        );
+      }
+      isStaffPerk = true;
+    } else {
+      return badRequest("Necesitas un paquete activo con este estudio para reservar");
+    }
   }
 
   // If class is full, add to waitlist
@@ -209,7 +233,7 @@ export async function POST(req: NextRequest) {
       classScheduleId,
       date: dateStart,
       status: "CONFIRMED",
-      source: "app",
+      source: isStaffPerk ? "staff_perk" : "app",
       ...(activePackage ? { userPackageId: activePackage.id } : {}),
     },
     include: {
