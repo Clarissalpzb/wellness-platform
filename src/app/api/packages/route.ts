@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const parsed = packageSchema.safeParse(body);
   if (!parsed.success) return badRequest(parsed.error.issues[0].message);
 
-  const { groupId, isFeatured, ...rest } = body;
+  const { groupId, isFeatured, metadata, ...rest } = body;
 
   const newPackage = await db.package.create({
     data: {
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
       organizationId: orgId,
       groupId: groupId || null,
       isFeatured: isFeatured ?? false,
+      ...(metadata !== undefined && { metadata }),
     },
     include: {
       group: { select: { id: true, name: true, color: true, emoji: true } },

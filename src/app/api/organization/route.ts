@@ -43,7 +43,7 @@ export async function PUT(req: Request) {
     }
 
     const body = await req.json();
-    const { name, monthlyOperatingCost } = body;
+    const { name, monthlyOperatingCost, settings: settingsPatch } = body;
 
     if (!name || typeof name !== "string" || name.trim().length < 2) {
       return NextResponse.json({ error: "El nombre debe tener al menos 2 caracteres" }, { status: 400 });
@@ -57,6 +57,19 @@ export async function PUT(req: Request) {
         return NextResponse.json({ error: "Costo mensual inválido" }, { status: 400 });
       }
       updateData.monthlyOperatingCost = cost;
+    }
+
+    // Merge settings patch into existing settings (e.g. cancellationFee config)
+    if (settingsPatch && typeof settingsPatch === "object") {
+      const current = await db.organization.findUnique({
+        where: { id: orgId },
+        select: { settings: true },
+      });
+      const existing =
+        typeof current?.settings === "object" && current.settings !== null
+          ? (current.settings as Record<string, unknown>)
+          : {};
+      updateData.settings = { ...existing, ...settingsPatch };
     }
 
     const org = await db.organization.update({

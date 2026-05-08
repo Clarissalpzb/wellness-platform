@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import {
   Plus, MoreHorizontal, Pencil, Trash2, Package, Infinity,
   Star, FolderOpen, GripVertical, ChevronDown, ChevronUp,
+  ShieldX, ShieldCheck, Info,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -63,8 +64,11 @@ interface Pkg {
   isActive: boolean;
   groupId: string | null;
   group: { id: string; name: string; color: string; emoji: string | null } | null;
+  metadata: Record<string, unknown>;
   _count: { userPackages: number };
 }
+
+type CancelFeeType = "none" | "inherit" | "custom";
 
 export default function PaquetesPage() {
   const [packages, setPackages] = useState<Pkg[]>([]);
@@ -78,6 +82,8 @@ export default function PaquetesPage() {
   const [formType, setFormType] = useState("");
   const [formGroupId, setFormGroupId] = useState<string>("none");
   const [formIsFeatured, setFormIsFeatured] = useState(false);
+  const [formCancelFeeType, setFormCancelFeeType] = useState<CancelFeeType>("inherit");
+  const [formCancelFeeAmount, setFormCancelFeeAmount] = useState<string>("");
   const [pkgError, setPkgError] = useState<string | null>(null);
 
   // Group dialog state
@@ -113,6 +119,13 @@ export default function PaquetesPage() {
     e.preventDefault();
     setPkgError(null);
     const fd = new FormData(e.currentTarget);
+    const cancelFee =
+      formCancelFeeType === "none"
+        ? { type: "none", amount: null }
+        : formCancelFeeType === "custom"
+        ? { type: "custom", amount: Number(formCancelFeeAmount) || 0 }
+        : { type: "inherit", amount: null };
+
     const body = {
       name: fd.get("name") as string,
       description: fd.get("description") as string || null,
@@ -122,6 +135,7 @@ export default function PaquetesPage() {
       validityDays: Number(fd.get("validityDays")),
       groupId: formGroupId === "none" ? null : formGroupId,
       isFeatured: formIsFeatured,
+      metadata: { ...(editPkg?.metadata ?? {}), cancellationFee: cancelFee },
     };
 
     const url = editPkg ? `/api/packages/${editPkg.id}` : "/api/packages";
@@ -151,6 +165,9 @@ export default function PaquetesPage() {
     setFormType(pkg.type);
     setFormGroupId(pkg.groupId ?? "none");
     setFormIsFeatured(pkg.isFeatured);
+    const cf = (pkg.metadata?.cancellationFee as { type?: string; amount?: number } | undefined);
+    setFormCancelFeeType((cf?.type as CancelFeeType) ?? "inherit");
+    setFormCancelFeeAmount(cf?.amount != null ? String(cf.amount) : "");
     setEditPkg(pkg);
   };
 
@@ -160,6 +177,8 @@ export default function PaquetesPage() {
     setFormType("");
     setFormGroupId("none");
     setFormIsFeatured(false);
+    setFormCancelFeeType("inherit");
+    setFormCancelFeeAmount("");
     setPkgError(null);
   };
 
@@ -503,6 +522,96 @@ export default function PaquetesPage() {
               </div>
               <Switch checked={formIsFeatured} onCheckedChange={setFormIsFeatured} />
             </div>
+
+            {/* Cancellation fee section */}
+            <div className="space-y-3 rounded-lg border border-neutral-200 p-4 bg-neutral-50">
+              <div className="flex items-center gap-2">
+                <ShieldX className="h-4 w-4 text-neutral-500" />
+                <p className="text-sm font-semibold text-neutral-800">Cargo por cancelación</p>
+              </div>
+              <p className="text-xs text-neutral-500 leading-relaxed">
+                Cuando un cliente cancela tarde, ¿qué pasa con ese lugar vacío? Puedes cobrar un fee para reducir las cancelaciones de último minuto.
+              </p>
+
+              <div className="space-y-1">
+                <Label className="text-xs text-neutral-600">Política de este paquete</Label>
+                <div className="space-y-2">
+                  {(
+                    [
+                      {
+                        value: "inherit" as CancelFeeType,
+                        icon: ShieldCheck,
+                        label: "Usar la política del estudio",
+                        hint: "El fee se toma de la configuración general",
+                        color: "text-blue-600",
+                      },
+                      {
+                        value: "custom" as CancelFeeType,
+                        icon: ShieldX,
+                        label: "Fee personalizado para este paquete",
+                        hint: "Útil para paquetes básicos donde quieres mayor control",
+                        color: "text-orange-600",
+                      },
+                      {
+                        value: "none" as CancelFeeType,
+                        icon: Star,
+                        label: "Sin cargo — beneficio premium",
+                        hint: "Ofrece esto en tus membresías más caras para diferenciarte",
+                        color: "text-amber-600",
+                      },
+                    ] as const
+                  ).map(({ value, icon: Icon, label, hint, color }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setFormCancelFeeType(value)}
+                      className={cn(
+                        "w-full flex items-start gap-3 p-3 rounded-lg border text-left transition-colors",
+                        formCancelFeeType === value
+                          ? "border-primary-500 bg-primary-50"
+                          : "border-neutral-200 bg-white hover:border-neutral-300"
+                      )}
+                    >
+                      <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", formCancelFeeType === value ? color : "text-neutral-400")} />
+                      <div className="min-w-0">
+                        <p className={cn("text-sm font-medium", formCancelFeeType === value ? "text-neutral-900" : "text-neutral-600")}>
+                          {label}
+                        </p>
+                        <p className="text-xs text-neutral-400 mt-0.5">{hint}</p>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {formCancelFeeType === "custom" && (
+                <div className="space-y-1">
+                  <Label htmlFor="cancelFeeAmount" className="text-xs text-neutral-600">Monto del cargo (MXN)</Label>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-neutral-500">$</span>
+                    <Input
+                      id="cancelFeeAmount"
+                      type="number"
+                      min="0"
+                      step="10"
+                      placeholder="Ej: 50"
+                      value={formCancelFeeAmount}
+                      onChange={(e) => setFormCancelFeeAmount(e.target.value)}
+                      className="max-w-32"
+                    />
+                    <span className="text-sm text-neutral-500">MXN</span>
+                  </div>
+                </div>
+              )}
+
+              {formCancelFeeType === "none" && (
+                <div className="flex items-start gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg p-2.5">
+                  <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                  <span>Tip: Menciona "cancelaciones sin costo" en la descripción del paquete para que los clientes lo vean como una ventaja.</span>
+                </div>
+              )}
+            </div>
+
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closePkgDialog}>Cancelar</Button>
               <Button type="submit">{isEditingPkg ? "Guardar Cambios" : "Crear Paquete"}</Button>

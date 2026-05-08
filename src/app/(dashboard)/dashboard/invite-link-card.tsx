@@ -1,13 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Check, Copy, Link } from "lucide-react";
 
 export function InviteLinkCard({ slug }: { slug: string }) {
   const [copied, setCopied] = useState(false);
-  const inviteUrl = `${typeof window !== "undefined" ? window.location.origin : ""}/unirse/${slug}`;
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(window.location.origin);
+  }, []);
+
+  const inviteUrl = `${origin}/unirse/${slug}`;
 
   function handleCopy() {
     navigator.clipboard.writeText(inviteUrl);
