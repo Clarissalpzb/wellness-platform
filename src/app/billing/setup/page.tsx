@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+
 import { useSearchParams } from "next/navigation";
 import { CreditCard, CheckCircle, Loader2, AlertCircle, Shield, Zap, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,18 @@ function BillingSetupInner() {
   const error = searchParams.get("error");
 
   const [loading, setLoading] = useState(false);
+  const [isReactivation, setIsReactivation] = useState(false);
+
+  useEffect(() => {
+    fetch("/api/billing/status")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.status === "canceled" || data.status === "unpaid" || data.status === "past_due") {
+          setIsReactivation(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const startCheckout = async () => {
     setLoading(true);
@@ -36,9 +49,13 @@ function BillingSetupInner() {
     <div className="min-h-screen bg-neutral-50 flex items-center justify-center p-6">
       <div className="max-w-md w-full space-y-6">
         <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold text-neutral-900">Activa tu suscripción</h1>
+          <h1 className="text-2xl font-bold text-neutral-900">
+            {isReactivation ? "Reactiva tu suscripción" : "Activa tu suscripción"}
+          </h1>
           <p className="text-neutral-500 text-sm">
-            14 días gratis, luego $2,500 MXN/mes. Cancela cuando quieras.
+            {isReactivation
+              ? "$2,500 MXN/mes. Tu información y datos están intactos."
+              : "14 días gratis, luego $2,500 MXN/mes. Cancela cuando quieras."}
           </p>
         </div>
 
@@ -66,12 +83,14 @@ function BillingSetupInner() {
             ))}
           </div>
 
-          <div className="pt-1 border-t border-neutral-100">
-            <div className="flex items-start gap-2 text-xs text-neutral-500">
-              <Shield className="h-3.5 w-3.5 mt-0.5 shrink-0 text-neutral-400" />
-              <span>Se requiere tarjeta para el trial. No se te cobrará nada hasta que terminen los 14 días.</span>
+          {!isReactivation && (
+            <div className="pt-1 border-t border-neutral-100">
+              <div className="flex items-start gap-2 text-xs text-neutral-500">
+                <Shield className="h-3.5 w-3.5 mt-0.5 shrink-0 text-neutral-400" />
+                <span>Se requiere tarjeta para el trial. No se te cobrará nada hasta que terminen los 14 días.</span>
+              </div>
             </div>
-          </div>
+          )}
 
           <Button onClick={startCheckout} disabled={loading} className="w-full" size="lg">
             {loading ? (
@@ -79,7 +98,7 @@ function BillingSetupInner() {
             ) : (
               <CreditCard className="mr-2 h-4 w-4" />
             )}
-            Comenzar prueba gratuita
+            {isReactivation ? "Reactivar suscripción" : "Comenzar prueba gratuita"}
           </Button>
         </div>
 

@@ -14,7 +14,8 @@ export function BillingWall({ reason }: BillingWallProps) {
   const openPortal = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/billing/portal", { method: "POST" });
+      const endpoint = reason === "canceled" ? "/api/billing/subscribe" : "/api/billing/portal";
+      const res = await fetch(endpoint, { method: "POST" });
       const data = await res.json();
       if (data.url) window.location.href = data.url;
     } catch {

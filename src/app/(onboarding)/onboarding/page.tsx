@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Upload, FileText, Image, Table, File, Sparkles, CheckCircle,
@@ -705,11 +705,25 @@ function SkipDisclaimer({ onConfirm, onBack }: { onConfirm: () => void; onBack: 
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 
+async function completeOnboarding() {
+  await fetch("/api/onboarding/complete", { method: "POST" }).catch(() => {});
+}
+
 export default function OnboardingPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [step, setStep] = useState<Step>("upload");
+
+  // Redirect to dashboard if onboarding was already completed (e.g. reactivation)
+  useEffect(() => {
+    fetch("/api/organization")
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.onboardingCompleted) router.replace("/dashboard");
+      })
+      .catch(() => {});
+  }, [router]);
   const [isDragging, setIsDragging] = useState(false);
   const [fileName, setFileName] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -798,13 +812,13 @@ export default function OnboardingPage() {
   }
 
   if (step === "done") {
-    return <DoneScreen summary={importSummary} onContinue={() => router.push("/dashboard")} />;
+    return <DoneScreen summary={importSummary} onContinue={async () => { await completeOnboarding(); router.push("/dashboard"); }} />;
   }
 
   // ─── Upload step ──────────────────────────────────────────
   return (
     <>
-      {showSkipWarning && <SkipDisclaimer onConfirm={() => { setShowSkipWarning(false); router.push("/dashboard"); }} onBack={() => setShowSkipWarning(false)} />}
+      {showSkipWarning && <SkipDisclaimer onConfirm={async () => { setShowSkipWarning(false); await completeOnboarding(); router.push("/dashboard"); }} onBack={() => setShowSkipWarning(false)} />}
 
       <div className="flex flex-col items-center justify-center min-h-screen px-4 py-12">
         <div className="w-full max-w-2xl">

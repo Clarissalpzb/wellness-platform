@@ -23,6 +23,8 @@ export async function POST() {
     return NextResponse.json({ error: "Ya tienes una suscripción activa" }, { status: 400 });
   }
 
+  const isReactivation = org?.platformSubscriptionStatus === "canceled" || org?.platformSubscriptionStatus === "unpaid";
+
   let customerId = org?.stripeCustomerId;
 
   if (!customerId) {
@@ -43,12 +45,12 @@ export async function POST() {
     mode: "subscription",
     line_items: [{ price: priceId, quantity: 1 }],
     subscription_data: {
-      trial_period_days: 14,
+      ...(!isReactivation && { trial_period_days: 14 }),
       metadata: { organizationId: orgId },
     },
     payment_method_collection: "always",
     success_url: `${appUrl}/api/billing/return?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${appUrl}/billing/setup?cancelled=1`,
+    cancel_url: isReactivation ? `${appUrl}/settings` : `${appUrl}/billing/setup?cancelled=1`,
   });
 
   return NextResponse.json({ url: checkoutSession.url });

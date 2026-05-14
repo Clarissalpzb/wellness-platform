@@ -21,16 +21,18 @@ export async function GET(req: Request) {
     if (!orgId) return NextResponse.redirect(`${appUrl}/billing/setup?error=1`);
 
     const sub = checkoutSession.subscription as any;
-    await db.organization.update({
+    const org = await db.organization.update({
       where: { id: orgId },
       data: {
         stripeCustomerId: checkoutSession.customer as string,
         platformSubscriptionId: sub?.id ?? null,
         platformSubscriptionStatus: sub?.status ?? "trialing",
       },
+      select: { onboardingCompleted: true },
     });
 
-    return NextResponse.redirect(`${appUrl}/onboarding`);
+    const destination = org.onboardingCompleted ? `${appUrl}/dashboard` : `${appUrl}/onboarding`;
+    return NextResponse.redirect(destination);
   } catch {
     return NextResponse.redirect(`${appUrl}/billing/setup?error=1`);
   }
