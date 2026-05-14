@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
+import { stripe } from "@/lib/stripe";
 import { registerSchema } from "@/lib/validations";
 import { slugify } from "@/lib/utils";
 
@@ -47,6 +48,21 @@ export async function POST(req: Request) {
         users: true,
       },
     });
+
+    // Create Stripe customer for platform billing
+    try {
+      const customer = await stripe.customers.create({
+        name: data.organizationName,
+        email: data.email,
+        metadata: { organizationId: organization.id },
+      });
+      await db.organization.update({
+        where: { id: organization.id },
+        data: { stripeCustomerId: customer.id },
+      });
+    } catch (stripeErr) {
+      console.error("Stripe customer creation failed (non-fatal):", stripeErr);
+    }
 
     return NextResponse.json({
       success: true,

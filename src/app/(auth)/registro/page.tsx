@@ -46,7 +46,7 @@ export default function RegisterPage() {
           setError("Cuenta creada pero hubo un error al iniciar sesión. Por favor inicia sesión manualmente.");
           return;
         }
-        window.location.href = "/dashboard";
+        window.location.href = "/billing/setup";
       }
     } catch {
       setError("Error al registrar");

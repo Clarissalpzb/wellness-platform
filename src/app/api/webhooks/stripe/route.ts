@@ -13,21 +13,23 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "No signature" }, { status: 400 });
   }
 
+  const webhookSecret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("STRIPE_CONNECT_WEBHOOK_SECRET is not set");
+    return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+  }
+
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
-      body,
-      signature,
-      process.env.STRIPE_WEBHOOK_SECRET!
-    );
+    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
   } catch (err) {
     console.error("Webhook signature verification failed:", err);
-    return NextResponse.json(
-      { error: "Invalid signature" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
   }
+
+  // All events from connected accounts include event.account
+  const stripeAccountId = (event as any).account as string | undefined;
 
   try {
     switch (event.type) {
@@ -36,54 +38,47 @@ export async function POST(req: Request) {
         const userId = session.metadata?.userId;
         const packageId = session.metadata?.packageId;
 
-        if (userId && packageId) {
-          const pkg = await db.package.findUnique({
-            where: { id: packageId },
+        if (!userId || !packageId) break;
+
+        const pkg = await db.package.findUnique({ where: { id: packageId } });
+        if (!pkg) break;
+
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
+
+        await db.userPackage.create({
+          data: {
+            userId,
+            packageId,
+            classesTotal: pkg.classLimit,
+            expiresAt,
+            stripeSubId: session.subscription as string | null,
+          },
+        });
+
+        const amountPaid = session.amount_total ? session.amount_total / 100 : pkg.price;
+        const couponCode = session.metadata?.couponCode;
+
+        await db.transaction.create({
+          data: {
+            userId,
+            organizationId: pkg.organizationId,
+            type: "PACKAGE_PURCHASE",
+            amount: amountPaid,
+            currency: pkg.currency,
+            paymentMethod: "STRIPE",
+            stripePaymentId: session.payment_intent as string,
+            description: couponCode
+              ? `Compra: ${pkg.name} (cupón: ${couponCode})`
+              : `Compra: ${pkg.name}`,
+          },
+        });
+
+        if (couponCode) {
+          await db.coupon.update({
+            where: { code: couponCode },
+            data: { usedCount: { increment: 1 } },
           });
-
-          if (pkg) {
-            const expiresAt = new Date();
-            expiresAt.setDate(expiresAt.getDate() + pkg.validityDays);
-
-            await db.userPackage.create({
-              data: {
-                userId,
-                packageId,
-                classesTotal: pkg.classLimit,
-                expiresAt,
-                stripeSubId: session.subscription as string | null,
-              },
-            });
-
-            const amountPaid = session.amount_total
-              ? session.amount_total / 100
-              : pkg.price;
-
-            const couponCode = session.metadata?.couponCode;
-
-            await db.transaction.create({
-              data: {
-                userId,
-                organizationId: pkg.organizationId,
-                type: "PACKAGE_PURCHASE",
-                amount: amountPaid,
-                currency: pkg.currency,
-                paymentMethod: "STRIPE",
-                stripePaymentId: session.payment_intent as string,
-                description: couponCode
-                  ? `Compra: ${pkg.name} (cupón: ${couponCode})`
-                  : `Compra: ${pkg.name}`,
-              },
-            });
-
-            // Increment coupon usage if one was applied
-            if (couponCode) {
-              await db.coupon.update({
-                where: { code: couponCode },
-                data: { usedCount: { increment: 1 } },
-              });
-            }
-          }
         }
         break;
       }
@@ -91,36 +86,26 @@ export async function POST(req: Request) {
       case "invoice.payment_succeeded": {
         const invoice = event.data.object as Stripe.Invoice;
         const subscriptionId = (invoice as unknown as Record<string, unknown>).subscription as string | undefined;
+        if (!subscriptionId) break;
 
-        if (subscriptionId) {
-          // Renew the user package
-          const userPackage = await db.userPackage.findFirst({
-            where: { stripeSubId: subscriptionId },
-            include: { package: true },
+        const userPackage = await db.userPackage.findFirst({
+          where: { stripeSubId: subscriptionId },
+          include: { package: true },
+        });
+
+        if (userPackage) {
+          const expiresAt = new Date();
+          expiresAt.setDate(expiresAt.getDate() + userPackage.package.validityDays);
+          await db.userPackage.update({
+            where: { id: userPackage.id },
+            data: { expiresAt, classesUsed: 0, isActive: true },
           });
-
-          if (userPackage) {
-            const expiresAt = new Date();
-            expiresAt.setDate(
-              expiresAt.getDate() + userPackage.package.validityDays
-            );
-
-            await db.userPackage.update({
-              where: { id: userPackage.id },
-              data: {
-                expiresAt,
-                classesUsed: 0,
-                isActive: true,
-              },
-            });
-          }
         }
         break;
       }
 
       case "customer.subscription.deleted": {
         const subscription = event.data.object as Stripe.Subscription;
-
         await db.userPackage.updateMany({
           where: { stripeSubId: subscription.id },
           data: { isActive: false },
@@ -128,15 +113,24 @@ export async function POST(req: Request) {
         break;
       }
 
+      // Mark onboarding complete when a connected account finishes setup
+      case "account.updated": {
+        const account = event.data.object as Stripe.Account;
+        if (account.details_submitted && account.charges_enabled) {
+          await db.organization.updateMany({
+            where: { stripeAccountId: account.id },
+            data: { stripeOnboardingComplete: true },
+          });
+        }
+        break;
+      }
+
       default:
-        console.log(`Unhandled event type: ${event.type}`);
+        console.log(`Unhandled event type: ${event.type} (account: ${stripeAccountId ?? "platform"})`);
     }
   } catch (error) {
     console.error("Webhook handler error:", error);
-    return NextResponse.json(
-      { error: "Webhook handler failed" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 
   return NextResponse.json({ received: true });

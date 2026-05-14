@@ -23,11 +23,15 @@ export async function POST(req: NextRequest) {
 
   const pkg = await db.package.findUnique({
     where: { id: packageId },
-    include: { organization: { select: { name: true } } },
+    include: { organization: { select: { name: true, stripeAccountId: true, stripeOnboardingComplete: true } } },
   });
 
   if (!pkg || !pkg.isActive) {
     return notFound("Paquete no encontrado o no está activo");
+  }
+
+  if (!pkg.organization.stripeOnboardingComplete || !pkg.organization.stripeAccountId) {
+    return badRequest("Este estudio aún no tiene pagos en línea configurados");
   }
 
   let finalPrice = pkg.price;
@@ -111,29 +115,32 @@ export async function POST(req: NextRequest) {
   // Create Stripe Checkout Session
   const unitAmount = Math.round(finalPrice * 100); // Convert to centavos
 
-  const checkoutSession = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: [
-      {
-        price_data: {
-          currency: pkg.currency.toLowerCase(),
-          product_data: {
-            name: pkg.name,
-            description: `${pkg.organization.name} — ${pkg.classLimit ? `${pkg.classLimit} clases` : "Clases ilimitadas"}, ${pkg.validityDays} días`,
+  const checkoutSession = await stripe.checkout.sessions.create(
+    {
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: pkg.currency.toLowerCase(),
+            product_data: {
+              name: pkg.name,
+              description: `${pkg.organization.name} — ${pkg.classLimit ? `${pkg.classLimit} clases` : "Clases ilimitadas"}, ${pkg.validityDays} días`,
+            },
+            unit_amount: unitAmount,
           },
-          unit_amount: unitAmount,
+          quantity: 1,
         },
-        quantity: 1,
+      ],
+      metadata: {
+        userId,
+        packageId: pkg.id,
+        ...(validatedCouponCode && { couponCode: validatedCouponCode }),
       },
-    ],
-    metadata: {
-      userId,
-      packageId: pkg.id,
-      ...(validatedCouponCode && { couponCode: validatedCouponCode }),
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/paquetes?purchase=success`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/reservar?purchase=cancelled`,
     },
-    success_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/paquetes?purchase=success`,
-    cancel_url: `${process.env.NEXT_PUBLIC_APP_URL}/app/reservar?purchase=cancelled`,
-  });
+    { stripeAccount: pkg.organization.stripeAccountId! }
+  );
 
   return success({ url: checkoutSession.url });
 }

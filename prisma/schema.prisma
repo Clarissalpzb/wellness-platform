@@ -16,6 +16,12 @@ model Organization {
   logo      String?
   settings           Json     @default("{}")
   monthlyOperatingCost Float   @default(0)
+  stripeAccountId          String?
+  stripeOnboardingComplete Boolean @default(false)
+  stripeCustomerId             String?
+  platformSubscriptionId       String?
+  platformSubscriptionStatus   String?
+  platformPaymentFailedAt      DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

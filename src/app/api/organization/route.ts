@@ -15,7 +15,7 @@ export async function GET() {
 
     const org = await db.organization.findUnique({
       where: { id: orgId },
-      select: { id: true, name: true, slug: true, logo: true, settings: true, monthlyOperatingCost: true },
+      select: { id: true, name: true, slug: true, logo: true, settings: true, monthlyOperatingCost: true, stripeAccountId: true, stripeOnboardingComplete: true },
     });
 
     if (!org) {
@@ -75,7 +75,7 @@ export async function PUT(req: Request) {
     const org = await db.organization.update({
       where: { id: orgId },
       data: updateData,
-      select: { id: true, name: true, slug: true, logo: true, settings: true, monthlyOperatingCost: true },
+      select: { id: true, name: true, slug: true, logo: true, settings: true, monthlyOperatingCost: true, stripeAccountId: true, stripeOnboardingComplete: true },
     });
 
     return NextResponse.json(org);
